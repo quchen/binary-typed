@@ -15,7 +15,8 @@ module Mainn (
 
 import GHC.Generics
 import Data.Typeable (Typeable, typeOf)
-import qualified Data.Typeable.Internal as TI
+import qualified Data.Typeable as Ty
+import qualified Data.Typeable.Internal as TI (Fingerprint(..), TypeRep(..))
 import Data.Binary
 import Control.Applicative
 
@@ -64,8 +65,8 @@ data TypeFormat =
         --
         --   * Data size usually between 'Hashed' and 'Full'.
         --   * All types are unqualified, @Foo.X@ and @Bar.X@ look identical,
-        --     thus type collisions (false positives) can happen
-        --   * Useful type errors ("expected X, received Y")
+        --     thus type collisions (false positives) can happen.
+        --   * Useful type errors ("expected X, received Y").
       | Shown
 
         -- | Compare the full representation of a data type.
@@ -121,22 +122,32 @@ typecheck (Typed typeInformation x) = case typeInformation of
 getFingerprint :: TI.TypeRep -> Fingerprint
 getFingerprint (TI.TypeRep fp _tycon _args) = Fingerprint fp
 
--- | 'TI.TypeRep' without the 'TI.Fingerprint'.
+-- | 'Ty.TypeRep' without the 'TI.Fingerprint'.
 data TypeRep = TypeRep TyCon [TypeRep]
       deriving (Eq, Ord, Show, Generic)
 instance Binary TypeRep
 
--- | 'TI.TyCon' without the 'TI.Fingerprint'.
-data TyCon = TyCon String String String
+-- | 'Ty.TyCon' without the 'TI.Fingerprint'.
+data TyCon = TyCon String -- Package
+                   String -- Module
+                   String -- Name
       deriving (Eq, Ord, Show, Generic)
 instance Binary TyCon
 
 -- | Get (only) the representation of a data type, i.e. strip all hashes.
-getFull :: TI.TypeRep -> TypeRep
-getFull (TI.TypeRep _fp tycon args) = TypeRep (stripFP tycon)
-                                              (map getFull args)
-      where stripFP :: TI.TyCon -> TyCon
-            stripFP (TI.TyCon _fp a b c) = TyCon a b c
+getFull :: Ty.TypeRep -> TypeRep
+getFull typerep = let (tycon, args) = Ty.splitTyConApp typerep
+                  in  TypeRep (stripFP tycon) (map getFull args)
+      where -- TyCon without fingerprint.
+            stripFP :: Ty.TyCon -> TyCon
+            stripFP tycon = TyCon (Ty.tyConPackage tycon)
+                                  (Ty.tyConModule  tycon)
+                                  (Ty.tyConName    tycon)
+                                  -- The Typeable API doesn't expose the
+                                  -- TyCon constructor, so pattern matching
+                                  -- is not possible here (without depending
+                                  -- on Typeable.Internal).
+
 
 -- | Wrapper around 'TI.Fingerprint' to avoid orphan 'Binary' instance
 newtype Fingerprint = Fingerprint TI.Fingerprint
