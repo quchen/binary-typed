@@ -39,7 +39,7 @@ data Typed a where
       Typed :: Typeable a => TypeInformation -> a -> Typed a
 
 instance Show a => Show (Typed a) where
-      show (Typed ty x) = "typed " ++ show format  ++ " " ++ show x
+      show (Typed ty x) = "typed " ++ show format  ++ " (" ++ show x ++ ")"
             where format = case ty of HashedType {} -> Hashed
                                       ShownType  {} -> Shown
                                       FullType   {} -> Full
