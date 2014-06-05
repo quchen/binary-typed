@@ -1,0 +1,25 @@
+name:                binary-typed
+version:             0.1.0.0
+synopsis:            Allows binary serialization tagged with type information,
+                     allowing for typechecking and useful error messages at
+                     the receiving site.
+-- description:
+homepage:            github.org/quchen/binary-typed
+license:             BSD2
+license-file:        LICENSE
+author:              David Luposchainsky
+maintainer:          dluposchainsky on gmail point com
+-- copyright:
+category:            Data
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Main
+  -- other-modules:
+  other-extensions:    GADTs, DeriveGeneric
+  build-depends:       base   >= 4.7
+                     , binary >= 0.7
+  -- hs-source-dirs:
+  default-language:    Haskell2010

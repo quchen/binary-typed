@@ -99,9 +99,9 @@ data TypeFormat =
         --     (see "GHC.Fingerprint.Type" for information on hashing).
         --   * Type errors cannot tell the expected type ("Expected X, received
         --     type with hash H")
-        --   * Depends on "Data.Typeable.Internal", so the hash function is
-        --     subject to sudden breaking changes. Not recommended for
-        --     future-proof communication.
+        --   * __Warning__: Depends on "Data.Typeable.Internal", so the hash
+        --     function is subject to sudden breaking changes, may depend on
+        --     the compiler version and so on.
         Hashed
 
         -- | Compare 'String' representation of types, obtained by calling
