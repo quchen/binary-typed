@@ -10,8 +10,7 @@ module Mainn (
       , TypeFormat(..)
 
       -- * Deconstruction
-      , typecheck
-      , unsafeErase
+      , erase
 ) where
 
 import GHC.Generics
@@ -84,9 +83,12 @@ typed format x = Typed typeInformation x where
             Shown  -> ShownType  (show           ty)
             Full   -> FullType   (getFull        ty)
 
--- | Structurally extract the value of a 'Typed' (without any typechecking).
-unsafeErase :: Typed a -> a
-unsafeErase (Typed _ x) = x
+-- | Extract the value of a 'Typed'.
+--
+--   The well-typedness of this is ensured by the 'typed' smart constructor and
+--   the 'Binary' instance of 'Typed'.
+erase :: Typed a -> a
+erase (Typed _ x) = x
 
 -- | Typecheck a 'Typed'. The result is either the contained value, or an
 --   error message.
@@ -135,11 +137,9 @@ getFull (TI.TypeRep _fp tycon args) = TypeRep' (stripFP tycon)
 
 getTyped :: (Binary a, Typeable a) => Get (Typed a)
 getTyped = do
-      ty    <- get
-      value <- get
-      let result = Typed ty value
-      case typecheck (Typed ty value) of
-            Left err -> fail err
+      result <- get
+      case typecheck result of
+            Left err -> fail   err
             Right _  -> return result
 
 
