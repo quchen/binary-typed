@@ -14,20 +14,20 @@ module Mainn (
 ) where
 
 import GHC.Generics
-import Data.Typeable
-import Data.Typeable.Internal as TI
+import Data.Typeable (Typeable, typeOf)
+import qualified Data.Typeable.Internal as TI
 import Data.Binary
 import Control.Applicative
 
-import Test.QuickCheck
+--import Test.QuickCheck
 
 
 -- ^ Type information stored alongside a value to be serialized, so that the
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
-data TypeInformation = HashedType TI.Fingerprint
-                     | ShownType String
-                     | FullType TypeRep'
+data TypeInformation = HashedType Fingerprint
+                     | ShownType  String
+                     | FullType   TypeRep
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
@@ -39,7 +39,10 @@ data Typed a where
       Typed :: Typeable a => TypeInformation -> a -> Typed a
 
 instance Show a => Show (Typed a) where
-      show (Typed tc a) = "Typecheck " ++ show tc ++ "; " ++ show a
+      show (Typed ty x) = "typed " ++ show format  ++ " " ++ show x
+            where format = case ty of HashedType {} -> Hashed
+                                      ShownType  {} -> Shown
+                                      FullType   {} -> Full
 
 
 
@@ -72,6 +75,8 @@ data TypeFormat =
         --   * Useful type errors ("expected X, received Y").
       | Full
 
+      deriving (Eq, Ord, Show)
+
 
 
 -- | Construct a 'Typed' value using the chosen type format.
@@ -95,75 +100,58 @@ erase (Typed _ x) = x
 typecheck :: Typed a -> Either String a
 typecheck (Typed typeInformation x) = case typeInformation of
       HashedType hash
-            | hashExpected == hash -> Right x
+            | expectedHash == hash -> Right x
             | otherwise            -> Left "type error (hash)"
       ShownType str
-            | showExpected == str  -> Right x
+            | expectedShow == str  -> Right x
             | otherwise            -> Left "type error (shown)"
       FullType full
-            | fullExpected == full -> Right x
+            | expectedFull == full -> Right x
             | otherwise            -> Left "type error (full)"
 
 
-      where typeExpected = typeOf x
-            hashExpected = getFingerprint typeExpected
-            showExpected = show           typeExpected
-            fullExpected = getFull        typeExpected
+      where expectedType = typeOf x
+            expectedHash = getFingerprint expectedType
+            expectedShow = show           expectedType
+            expectedFull = getFull        expectedType
 
 
 
 -- | Extract the 'TI.Fingerptint' hash from a 'TI.TypeRep'.
-getFingerprint :: TI.TypeRep -> TI.Fingerprint
-getFingerprint (TI.TypeRep fp _tycon _args) = fp
+getFingerprint :: TI.TypeRep -> Fingerprint
+getFingerprint (TI.TypeRep fp _tycon _args) = Fingerprint fp
 
 -- | 'TI.TypeRep' without the 'TI.Fingerprint'.
-data TypeRep' = TypeRep' TyCon' [TypeRep']
+data TypeRep = TypeRep TyCon [TypeRep]
       deriving (Eq, Ord, Show, Generic)
-instance Binary TypeRep'
+instance Binary TypeRep
 
 -- | 'TI.TyCon' without the 'TI.Fingerprint'.
-data TyCon' = TyCon' String String String
+data TyCon = TyCon String String String
       deriving (Eq, Ord, Show, Generic)
-instance Binary TyCon'
+instance Binary TyCon
 
 -- | Get (only) the representation of a data type, i.e. strip all hashes.
-getFull :: TI.TypeRep -> TypeRep'
-getFull (TI.TypeRep _fp tycon args) = TypeRep' (stripFP tycon)
-                                               (map getFull args)
-      where stripFP :: TI.TyCon -> TyCon'
-            stripFP (TI.TyCon _fp a b c) = TyCon' a b c
+getFull :: TI.TypeRep -> TypeRep
+getFull (TI.TypeRep _fp tycon args) = TypeRep (stripFP tycon)
+                                              (map getFull args)
+      where stripFP :: TI.TyCon -> TyCon
+            stripFP (TI.TyCon _fp a b c) = TyCon a b c
 
+-- | Wrapper around 'TI.Fingerprint' to avoid orphan 'Binary' instance
+newtype Fingerprint = Fingerprint TI.Fingerprint
+      deriving (Eq, Ord, Show)
 
-
-getTyped :: (Binary a, Typeable a) => Get (Typed a)
-getTyped = do
-      result <- get
-      case typecheck result of
-            Left err -> fail   err
-            Right _  -> return result
-
-
-putTyped :: Binary a => Typed a -> Put
-putTyped (Typed ty value) = put (ty, value)
-
-
-
-
-instance Binary TI.Fingerprint where
-      get = liftA2 TI.Fingerprint get get
-      put (TI.Fingerprint a b) = put a *> put b
-
-instance Binary TI.TyCon where
-      get = TI.TyCon <$> get <*> get <*> get <*> get
-      put (TI.TyCon fp b c d) = put fp *> put b *> put c *> put d
-
--- instance Binary TI.TypeRep where
---       get = TI.TypeRep <$> get <*> get <*> get
---       put (TI.TypeRep fp b c) = put fp *> put b *> put c
+instance Binary Fingerprint where
+      get = liftA2 (\a b -> Fingerprint (TI.Fingerprint a b)) get get
+      put (Fingerprint (TI.Fingerprint a b)) = put a *> put b
 
 instance (Binary a, Typeable a) => Binary (Typed a) where
-      get = getTyped
-      put = putTyped
+      get = do result <- get
+               case typecheck result of
+                     Left err -> fail   err
+                     Right _  -> return result
+      put (Typed ty value) = put (ty, value)
 
 -- main = do
 --       let val = 0 :: Word8
