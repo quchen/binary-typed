@@ -10,8 +10,8 @@ module Mainn (
       , TypeFormat(..)
 
       -- * Deconstruction
-      , erase
       , typecheck
+      , unsafeErase
 ) where
 
 import GHC.Generics
@@ -39,9 +39,6 @@ instance Binary TypeInformation
 data Typed a where
       Typed :: Typeable a => TypeInformation -> a -> Typed a
 
-instance Eq a => Eq (Typed a) where
-      Typed tcX x == Typed tcY y = (tcX,x) == (tcY,y)
-
 instance Show a => Show (Typed a) where
       show (Typed tc a) = "Typecheck " ++ show tc ++ "; " ++ show a
 
@@ -52,10 +49,10 @@ data TypeFormat =
 
         -- | Compare types by their hash values.
         --
-        --   * Requires only 8 bytes per serialized message
+        --   * Requires only 8 bytes per serialization.
         --   * Subject to false positive due to hash collisions, although in
-        --     practice this should never happen (see "GHC.Fingerprint.Type"
-        --     for information on hashing).
+        --     practice this should almost never happen
+        --     (see "GHC.Fingerprint.Type"for information on hashing).
         --   * Type errors cannot tell the expected type ("Expected X, received
         --     type with hash H")
         Hashed
@@ -71,9 +68,9 @@ data TypeFormat =
 
         -- | Compare the full representation of a data type.
         --
-        --   * Much more verbose than hashes
-        --   * Correct comparison (no false positives)
-        --   * Useful type errors ("expected X, received Y")
+        --   * Much more verbose than hashes.
+        --   * Correct comparison (no false positives).
+        --   * Useful type errors ("expected X, received Y").
       | Full
 
 
@@ -87,9 +84,9 @@ typed format x = Typed typeInformation x where
             Shown  -> ShownType  (show           ty)
             Full   -> FullType   (getFull        ty)
 
--- | Extract the value of a 'Typed' (without any typechecking).
-erase :: Typed a -> a
-erase (Typed _ x) = x
+-- | Structurally extract the value of a 'Typed' (without any typechecking).
+unsafeErase :: Typed a -> a
+unsafeErase (Typed _ x) = x
 
 -- | Typecheck a 'Typed'. The result is either the contained value, or an
 --   error message.
