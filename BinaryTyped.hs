@@ -250,7 +250,8 @@ instance Binary Fingerprint where
 
 
 
--- | Encode a 'Typeable' value to 'Lazy.ByteString'.
+-- | Encode a 'Typeable' value to 'Lazy.ByteString' that includes type
+--   information.
 encodeTyped :: (Typeable a, Binary a)
             => TypeFormat
             -> a
@@ -269,18 +270,15 @@ unsafeDecodeTyped = erase . decode
 
 
 -- | Safely decode data, yielding 'Either' an error 'String' or the value,
---   along with meta-information of the consumed binary data. Typed cousin
---   of 'Data.Binary.decodeOrFail'.
+--   along with meta-information of the consumed binary data.
+--   Typed cousin of 'Data.Binary.decodeOrFail'.
 decodeTypedOrFail :: (Typeable a, Binary a)
                   => Lazy.ByteString
                   -> Either (Lazy.ByteString, ByteOffset, String)
                             (Lazy.ByteString, ByteOffset, a)
 decodeTypedOrFail input = case decodeOrFail input of
       Right (rest, offset, value) -> Right (rest, offset, erase value)
-      Left  (rest, offset, err)   -> Left  (rest, offset, err)
-      -- The above looks like a redundant line, but since the matching on Right
-      -- changes the type of the third tuple field (by calling 'erase', the
-      -- Left value has to be de- and reconstructed as well.
+      Left l -> Left l
 
 
 
