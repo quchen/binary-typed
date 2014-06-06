@@ -150,19 +150,39 @@ typecheck :: Typed a -> Either String a
 typecheck (Typed typeInformation x) = case typeInformation of
       HashedType hash
             | expectedHash == hash -> Right x
-            | otherwise            -> Left "type error (hash)"
+            | otherwise            -> Left (hashErrorMsg hash)
       ShownType str
             | expectedShow == str  -> Right x
-            | otherwise            -> Left "type error (shown)"
+            | otherwise            -> Left (shownErrorMsg str)
       FullType full
             | expectedFull == full -> Right x
-            | otherwise            -> Left "type error (full)"
+            | otherwise            -> Left (fullErrorMsg full)
 
 
       where expectedType = typeOf x
             expectedHash = getFingerprint expectedType
             expectedShow = show           expectedType
             expectedFull = getFull        expectedType
+
+            hashErrorMsg hash = unwords [ "Type error: expected type"
+                                        , expectedShow
+                                        , "with hash"
+                                        , show expectedHash ++ ","
+                                        , "but received data with hash"
+                                        , show hash
+                                        ]
+            shownErrorMsg str = unwords [ "Type error: expected type"
+                                        , expectedShow ++ ","
+                                        , "but received data with type"
+                                        , str
+                                        ]
+            fullErrorMsg full = unwords [ "Type error: expected type"
+                                        , expectedShow ++ ","
+                                        , "but received data with type"
+                                        , show full
+                                        ]
+
+
 
 
 
