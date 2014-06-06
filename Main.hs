@@ -46,19 +46,21 @@ module RenameMeToSomethingUseful (
 
       -- * Convenience API functions
       , encodeTyped
-      , unsafeDecodeTyped
       , decodeTyped
       , decodeTypedOrFail
+      , unsafeDecodeTyped
 ) where
 
-import GHC.Generics
-import Data.Typeable (Typeable, typeOf)
+import           GHC.Generics
+import           Control.Applicative
+import qualified Data.ByteString.Lazy as Lazy
+
+import           Data.Typeable (Typeable, typeOf)
 import qualified Data.Typeable as Ty
 import qualified Data.Typeable.Internal as TI (Fingerprint(..), TypeRep(..))
-import Data.Binary
-import Data.Binary.Get (ByteOffset)
-import Control.Applicative
-import qualified Data.ByteString.Lazy as Lazy
+
+import           Data.Binary
+import           Data.Binary.Get (ByteOffset)
 
 
 
@@ -249,16 +251,20 @@ instance Binary Fingerprint where
 
 
 -- | Encode a 'Typeable' value to 'Lazy.ByteString'.
-encodeTyped :: (Typeable a, Binary a) => a -> Lazy.ByteString
-encodeTyped = error "encodeTyped not yet implemented"
+encodeTyped :: (Typeable a, Binary a)
+            => TypeFormat
+            -> a
+            -> Lazy.ByteString
+encodeTyped format value = encode (typed format value)
 
 
 
--- Crashes on type mismatch, like decode crashes when decoding fails
+-- | Decode a typed value, throwing an error at runtime on failure.
+--   Typed cousin of 'Data.Binary.decode'.
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => Lazy.ByteString
                   -> a
-unsafeDecodeTyped = error "unsafeDecodeTyped not yet implemented"
+unsafeDecodeTyped = erase . decode
 
 
 
@@ -269,7 +275,12 @@ decodeTypedOrFail :: (Typeable a, Binary a)
                   => Lazy.ByteString
                   -> Either (Lazy.ByteString, ByteOffset, String)
                             (Lazy.ByteString, ByteOffset, a)
-decodeTypedOrFail = error "decodeTypedOrFail not yet implemented"
+decodeTypedOrFail input = case decodeOrFail input of
+      Right (rest, offset, value) -> Right (rest, offset, erase value)
+      Left  (rest, offset, err)   -> Left  (rest, offset, err)
+      -- The above looks like a redundant line, but since the matching on Right
+      -- changes the type of the third tuple field (by calling 'erase', the
+      -- Left value has to be de- and reconstructed as well.
 
 
 
