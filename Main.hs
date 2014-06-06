@@ -279,5 +279,5 @@ decodeTyped :: (Typeable a, Binary a)
             => Lazy.ByteString
             -> Either String a
 decodeTyped bs = case decodeTypedOrFail bs of
-      Left  (rest, offset, err)   -> Left err
-      Right (rest, offset, value) -> Right value
+      Left  (_rest, _offset, err)   -> Left err
+      Right (_rest, _offset, value) -> Right value
