@@ -34,7 +34,7 @@
 --   'Bool', but is attempted to be decoded as 'Int'.
 
 
-module RenameMeToSomethingUseful (
+module BinaryTyped (
       Typed
 
       -- * Construction
