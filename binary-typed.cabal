@@ -7,13 +7,13 @@ synopsis:            Allows binary serialization tagged with type information,
                      This package serves the same purpose as tagged-binary,
                      with a couple of key differences:
 
-                     * All encoding is still done by "Data.Binary", and
-                       soundness of the data is ensured at each construction
-                       site.
+                     * Soundness of the data is ensured at each construction
+                       site; all other data handling is still done in Binary.
                      * Support of different kinds of serialized type
                        annotations, each with specific strengths and weaknesses.
+                     * Error messages provide details on type errors.
 -- description:
-homepage:            github.org/quchen/binary-typed
+homepage:            https://github.com/quchen/binary-typed
 license:             BSD2
 license-file:        LICENSE
 author:              David Luposchainsky

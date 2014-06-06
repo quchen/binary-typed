@@ -77,8 +77,6 @@ instance Show a => Show (Typed a) where
                                       ShownType  {} -> Shown
                                       FullType   {} -> Full
 
-
-
 instance (Binary a, Typeable a) => Binary (Typed a) where
       get = do result <- get
                case typecheck result of
