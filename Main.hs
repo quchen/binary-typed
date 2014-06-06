@@ -43,6 +43,12 @@ module RenameMeToSomethingUseful (
 
       -- * Deconstruction
       , erase
+
+      -- * Convenience API functions
+      , encodeTyped
+      , unsafeDecodeTyped
+      , decodeTyped
+      , decodeTypedOrFail
 ) where
 
 import GHC.Generics
@@ -50,7 +56,9 @@ import Data.Typeable (Typeable, typeOf)
 import qualified Data.Typeable as Ty
 import qualified Data.Typeable.Internal as TI (Fingerprint(..), TypeRep(..))
 import Data.Binary
+import Data.Binary.Get (ByteOffset)
 import Control.Applicative
+import qualified Data.ByteString.Lazy as Lazy
 
 
 
@@ -229,3 +237,47 @@ newtype Fingerprint = Fingerprint TI.Fingerprint
 instance Binary Fingerprint where
       get = liftA2 (\a b -> Fingerprint (TI.Fingerprint a b)) get get
       put (Fingerprint (TI.Fingerprint a b)) = put a *> put b
+
+
+
+
+
+-- #############################################################################
+-- ###  Convenience API functions  #############################################
+-- #############################################################################
+
+
+
+-- | Encode a 'Typeable' value to 'Lazy.ByteString'.
+encodeTyped :: (Typeable a, Binary a) => a -> Lazy.ByteString
+encodeTyped = error "encodeTyped not yet implemented"
+
+
+
+-- Crashes on type mismatch, like decode crashes when decoding fails
+unsafeDecodeTyped :: (Typeable a, Binary a)
+                  => Lazy.ByteString
+                  -> a
+unsafeDecodeTyped = error "unsafeDecodeTyped not yet implemented"
+
+
+
+-- | Safely decode data, yielding 'Either' an error 'String' or the value,
+--   along with meta-information of the consumed binary data. Typed cousin
+--   of 'Data.Binary.decodeOrFail'.
+decodeTypedOrFail :: (Typeable a, Binary a)
+                  => Lazy.ByteString
+                  -> Either (Lazy.ByteString, ByteOffset, String)
+                            (Lazy.ByteString, ByteOffset, a)
+decodeTypedOrFail = error "decodeTypedOrFail not yet implemented"
+
+
+
+-- | Safely decode data, yielding 'Either' an error 'String' or the value.
+--   Equivalent to 'decodeTypedOrFail' stripped of the meta-information.
+decodeTyped :: (Typeable a, Binary a)
+            => Lazy.ByteString
+            -> Either String a
+decodeTyped bs = case decodeTypedOrFail bs of
+      Left  (rest, offset, err)   -> Left err
+      Right (rest, offset, value) -> Right value
