@@ -3,7 +3,7 @@
 
 -- | Defines a type-safe 'Binary' instance.
 --
---   Standard 'Binary' serializes to 'Data.ByteString.Lazy.ByteString', which
+--   Standard 'Binary' serializes to 'BSL.ByteString', which
 --   is an untyped format; deserialization of unexpected input usually results
 --   in unusable data.
 --
@@ -53,21 +53,27 @@ module BinaryTyped (
 
 import           GHC.Generics
 import           Control.Applicative
-import qualified Data.ByteString.Lazy as Lazy
+import           Data.List
+import           Data.Monoid
+import qualified Data.ByteString      as BS
+import qualified Data.ByteString.Lazy as BSL
 
 import           Data.Typeable (Typeable, typeOf)
 import qualified Data.Typeable as Ty
-import qualified Data.Typeable.Internal as TI (Fingerprint(..), TypeRep(..))
 
 import           Data.Binary
 import           Data.Binary.Get (ByteOffset)
+
+-- Crypto stuff for hashing
+import           Crypto.Hash
+import           Data.Byteable (toBytes)
 
 
 
 -- ^ Type information stored alongside a value to be serialized, so that the
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
-data TypeInformation = HashedType Fingerprint
+data TypeInformation = HashedType BS.ByteString
                      | ShownType  String
                      | FullType   TypeRep
                      deriving (Eq, Ord, Show, Generic)
@@ -100,17 +106,14 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 -- | Determine how the 'TypeInformation' should be created by 'typed'.
 data TypeFormat =
 
-        -- | Compare types by their hash values.
+        -- | Compare types by their hash values, currently a 'MD5'
+        --   representation of the 'Ty.TypeRep'.
         --
-        --   * Requires only 8 bytes per serialization.
+        --   * Requires only a handful of bytes per serialization.
         --   * Subject to false positive due to hash collisions, although in
-        --     practice this should almost never happen
-        --     (see "GHC.Fingerprint.Type" for information on hashing).
+        --     practice this should almost never happen.
         --   * Type errors cannot tell the expected type ("Expected X, received
         --     type with hash H")
-        --   * __Warning__: Depends on "Data.Typeable.Internal", so the hash
-        --     function is subject to sudden breaking changes, may depend on
-        --     the compiler version and so on.
         Hashed
 
         -- | Compare 'String' representation of types, obtained by calling
@@ -138,9 +141,9 @@ typed :: Typeable a => TypeFormat -> a -> Typed a
 typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
-            Hashed -> HashedType (getFingerprint ty)
-            Shown  -> ShownType  (show           ty)
-            Full   -> FullType   (getFull        ty)
+            Hashed -> HashedType (typeHash ty)
+            Shown  -> ShownType  (show     ty)
+            Full   -> FullType   (getFull  ty)
 
 
 
@@ -169,9 +172,9 @@ typecheck (Typed typeInformation x) = case typeInformation of
 
 
       where expectedType = typeOf x
-            expectedHash = getFingerprint expectedType
-            expectedShow = show           expectedType
-            expectedFull = getFull        expectedType
+            expectedHash = typeHash expectedType
+            expectedShow = show     expectedType
+            expectedFull = getFull  expectedType
 
             hashErrorMsg hash = unwords [ "Type error: expected type"
                                         , expectedShow
@@ -193,22 +196,25 @@ typecheck (Typed typeInformation x) = case typeInformation of
 
 
 
+-- | Hash a 'Ty.TypeRep'.
+typeHash :: Ty.TypeRep -> BS.ByteString
+typeHash = md5 . show where
+
+      md5 = toBytes . hashlazy'. encode
+
+      hashlazy' :: BSL.ByteString -> Digest MD5
+      hashlazy' = hashlazy
 
 
--- | Extract the 'TI.Fingerptint' hash from a 'TI.TypeRep'.
-getFingerprint :: TI.TypeRep -> Fingerprint
-getFingerprint (TI.TypeRep fp _tycon _args) = Fingerprint fp
 
-
-
--- | 'Ty.TypeRep' without the 'TI.Fingerprint'.
+-- | 'Ty.TypeRep' without the (internal) fingerprint
 data TypeRep = TypeRep TyCon [TypeRep]
       deriving (Eq, Ord, Show, Generic)
 instance Binary TypeRep
 
 
 
--- | 'Ty.TyCon' without the 'TI.Fingerprint'.
+-- | 'Ty.TyCon' without the (internal) fingerprint
 data TyCon = TyCon String -- Package
                    String -- Module
                    String -- Name
@@ -233,16 +239,6 @@ getFull typerep = let (tycon, args) = Ty.splitTyConApp typerep
 
 
 
--- | Wrapper around 'TI.Fingerprint' to avoid orphan 'Binary' instance
-newtype Fingerprint = Fingerprint TI.Fingerprint
-      deriving (Eq, Ord, Show)
-
-instance Binary Fingerprint where
-      get = liftA2 (\a b -> Fingerprint (TI.Fingerprint a b)) get get
-      put (Fingerprint (TI.Fingerprint a b)) = put a *> put b
-
-
-
 
 
 -- #############################################################################
@@ -251,12 +247,12 @@ instance Binary Fingerprint where
 
 
 
--- | Encode a 'Typeable' value to 'Lazy.ByteString' that includes type
+-- | Encode a 'Typeable' value to 'BSL.ByteString' that includes type
 --   information.
 encodeTyped :: (Typeable a, Binary a)
             => TypeFormat
             -> a
-            -> Lazy.ByteString
+            -> BSL.ByteString
 encodeTyped format value = encode (typed format value)
 
 
@@ -264,7 +260,7 @@ encodeTyped format value = encode (typed format value)
 -- | Decode a typed value, throwing an error at runtime on failure.
 --   Typed cousin of 'Data.Binary.decode'.
 unsafeDecodeTyped :: (Typeable a, Binary a)
-                  => Lazy.ByteString
+                  => BSL.ByteString
                   -> a
 unsafeDecodeTyped = erase . decode
 
@@ -274,9 +270,9 @@ unsafeDecodeTyped = erase . decode
 --   along with meta-information of the consumed binary data.
 --   Typed cousin of 'Data.Binary.decodeOrFail'.
 decodeTypedOrFail :: (Typeable a, Binary a)
-                  => Lazy.ByteString
-                  -> Either (Lazy.ByteString, ByteOffset, String)
-                            (Lazy.ByteString, ByteOffset, a)
+                  => BSL.ByteString
+                  -> Either (BSL.ByteString, ByteOffset, String)
+                            (BSL.ByteString, ByteOffset, a)
 decodeTypedOrFail input = case decodeOrFail input of
       Right (rest, offset, value) -> Right (rest, offset, erase value)
       Left l -> Left l
@@ -286,7 +282,7 @@ decodeTypedOrFail input = case decodeOrFail input of
 -- | Safely decode data, yielding 'Either' an error 'String' or the value.
 --   Equivalent to 'decodeTypedOrFail' stripped of the meta-information.
 decodeTyped :: (Typeable a, Binary a)
-            => Lazy.ByteString
+            => BSL.ByteString
             -> Either String a
 decodeTyped bs = case decodeTypedOrFail bs of
       Left  (_rest, _offset, err)   -> Left err
