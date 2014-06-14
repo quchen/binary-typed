@@ -19,6 +19,7 @@ props = tree tests where
       tests = [error_coercion]
 
 
+-- | Test whether encoding an Int and decoding it as Bool produces a type error
 error_coercion :: TestTree
 error_coercion = tree tests where
       tree = testGroup "Encode Int, decode Bool => Type error"
@@ -27,6 +28,7 @@ error_coercion = tree tests where
               , error_int_bool_full
               ]
 
+-- | See 'error_coercion'
 error_int_bool_hashed :: TestTree
 error_int_bool_hashed =
       testCase "Hashed" $
@@ -35,6 +37,7 @@ error_int_bool_hashed =
       @?
       "No type error when coercing Int to Bool (with hashed type info)"
 
+-- | See 'error_coercion'
 error_int_bool_shown :: TestTree
 error_int_bool_shown =
       testCase "Shown" $
@@ -43,6 +46,7 @@ error_int_bool_shown =
       @?
       "No type error when coercing Int to Bool (with shown type info)"
 
+-- | See 'error_coercion'
 error_int_bool_full :: TestTree
 error_int_bool_full =
       testCase "Full" $
@@ -51,5 +55,6 @@ error_int_bool_full =
       @?
       "No type error when coercing Int to Bool (with full type info)"
 
+-- | See 'error_coercion'
 coercion_int_bool :: TypeFormat -> Either String Bool
 coercion_int_bool format = decodeTyped (encodeTyped format (123 :: Int))
