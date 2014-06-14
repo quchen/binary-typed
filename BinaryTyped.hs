@@ -88,9 +88,10 @@ instance Show a => Show (Typed a) where
                                       FullType   {} -> Full
 
 instance (Binary a, Typeable a) => Binary (Typed a) where
-      get = do result <- get
+      get = do (ty, value) <- get
+               let result = Typed ty value
                case typecheck result of
-                     Left err -> fail   err
+                     Left err -> fail   err -- "fail" is safe in Get Monad
                      Right _  -> return result
       put (Typed ty value) = put (ty, value)
 
