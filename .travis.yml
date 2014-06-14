@@ -16,15 +16,16 @@ before_install:
 
 install:
       - cabal sandbox init
-      - cabal install -j --only-dependencies --ghc-options=-w
+      - cabal install --only-dependencies
       - cabal configure
 
 script:
-      - make all
+      - cabal build
 
-after_success:
-      - make haddock
-      # run tests
+      - cabal install --enable-tests --only-dependencies
+      - cabal test --show-details=always
+
+      - cabal haddock
 
 
 
