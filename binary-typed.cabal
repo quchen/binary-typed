@@ -1,18 +1,18 @@
 name:                binary-typed
 version:             0.1.0.0
-synopsis:            Allows binary serialization tagged with type information,
+synopsis:            Type-safe binary serialization
+Description:         Allows `Binary` serialization tagged with type information,
                      allowing for typechecking and useful error messages at
                      the receiving site.
-
+                     .
                      This package serves the same purpose as tagged-binary,
                      with a couple of key differences:
-
+                     .
                      * Soundness of the data is ensured at each construction
                        site; all other data handling is still done in Binary.
                      * Support of different kinds of serialized type
                        annotations, each with specific strengths and weaknesses.
                      * Error messages provide details on type errors.
--- description:
 homepage:            https://github.com/quchen/binary-typed
 license:             BSD2
 license-file:        LICENSE
@@ -31,8 +31,8 @@ library
       other-extensions:    GADTs, DeriveGeneric
       build-depends:       base       >= 4.7
                          , binary     >= 0.7
+                         , byteable   >= 0.1
                          , bytestring >= 0.9
                          , cryptohash >= 0.11
-                         , byteable   >= 0.1
       -- hs-source-dirs:
       default-language:    Haskell2010

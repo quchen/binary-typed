@@ -1,37 +1,43 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DeriveGeneric #-}
 
+
+
 -- | Defines a type-safe 'Binary' instance.
 --
---   Standard 'Binary' serializes to 'BSL.ByteString', which
---   is an untyped format; deserialization of unexpected input usually results
---   in unusable data.
+-- Standard 'Binary' serializes to 'BSL.ByteString', which
+-- is an untyped format; deserialization of unexpected input usually results
+-- in unusable data.
 --
---   This module defines a 'Typed' type, which allows serializing both a value
---   and the type of that value; deserialization can then check whether the
---   received data was sent assuming the right type, and error messages
---   may provide insight into the type mismatch.
+-- This module defines a 'Typed' type, which allows serializing both a value
+-- and the type of that value; deserialization can then check whether the
+-- received data was sent assuming the right type, and error messages
+-- may provide insight into the type mismatch.
 --
---   Example without type safety:
+-- Example without type safety:
 --
---   > test = let val = 'True'
---   >            enc = 'encode' val
---   >            dec = 'decode' enc :: 'Int'
---   >        in  print dec
+-- @
+-- test = let val = 10 :: 'Int'
+--            enc = 'encode' val
+--            dec = 'decode' enc :: 'Bool'
+--        in  'print' dec
+-- @
 --
---   This behaves unexpectedly: A 'True' value is converted to an 'Int', which
---   corresponds to a wacky type coercion. The receiving end has no way of
---   knowing what the incoming data should have been interpreted as.
+-- This behaves unexpectedly: An 'Int' value is converted to a 'Bool', which
+-- corresponds to a wacky type coercion. The receiving end has no way of
+-- knowing what the incoming data should have been interpreted as.
 --
---   Using 'Typed', this can be avoided:
+-- Using 'Typed', this can be avoided:
 --
---   > test' = let val = 'True'
---   >             enc = 'encode' ('typed' 'Full' val)
---   >             dec = 'decode' enc :: 'Typed' 'Int'
---   >         in  print dec
+-- @
+-- test' = let val = 10 :: 'Int'
+--             enc = 'encode' ('typed' 'Full' val)
+--             dec = 'decode' enc :: 'Typed' 'Bool'
+--         in  'print' dec
+-- @
 --
---   This time 'decode' raises an error: the incoming data is tagged as a
---   'Bool', but is attempted to be decoded as 'Int'.
+-- This time 'decode' raises an error: the incoming data is tagged as a
+-- 'Int', but is attempted to be decoded as 'Bool'.
 
 
 module BinaryTyped (
@@ -52,6 +58,8 @@ module BinaryTyped (
 ) where
 
 import           GHC.Generics
+import           Data.List
+import           Numeric (showHex)
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -177,9 +185,9 @@ typecheck (Typed typeInformation x) = case typeInformation of
             hashErrorMsg hash = unwords [ "Type error: expected type"
                                         , expectedShow
                                         , "with hash"
-                                        , show expectedHash ++ ","
+                                        , showBSHex expectedHash ++ ","
                                         , "but received data with hash"
-                                        , show hash
+                                        , showBSHex hash
                                         ]
             shownErrorMsg str = unwords [ "Type error: expected type"
                                         , expectedShow ++ ","
@@ -191,6 +199,9 @@ typecheck (Typed typeInformation x) = case typeInformation of
                                         , "but received data with type"
                                         , show full
                                         ]
+
+showBSHex :: BS.ByteString -> String
+showBSHex = concatMap (\x -> showHex x "") . BS.unpack
 
 
 
