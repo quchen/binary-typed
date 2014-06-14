@@ -58,7 +58,6 @@ module BinaryTyped (
 ) where
 
 import           GHC.Generics
-import           Data.List
 import           Numeric (showHex)
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL

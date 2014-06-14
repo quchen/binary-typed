@@ -24,15 +24,34 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.20
 
+source-repository head
+      type:     git
+      location: https://github.com/quchen/binary-typed
+
 library
       exposed-modules:     BinaryTyped
-      ghc-options:         -O2 -Wall
+      ghc-options:         -Wall
       -- other-modules:
       other-extensions:    GADTs, DeriveGeneric
-      build-depends:       base       >= 4.7
-                         , binary     >= 0.7
-                         , byteable   >= 0.1
-                         , bytestring >= 0.9
-                         , cryptohash >= 0.11
+      build-depends:       base             >= 4.7 && < 5
+                         , binary           >= 0.7
+                         , byteable         >= 0.1
+                         , bytestring       >= 0.9
+                         , cryptohash       >= 0.11
       -- hs-source-dirs:
+      default-language:    Haskell2010
+
+
+test-suite tasty
+      type:                exitcode-stdio-1.0
+      ghc-options:         -Wall
+      hs-source-dirs:      tests
+      main-is:             Tests.hs
+      other-extensions:    ScopedTypeVariables, NumDecimals
+      build-depends:       base             >= 4.7 && < 5
+                         , binary           >= 0.7
+                         , binary-typed
+                         , tasty            >= 0.8
+                         , tasty-hunit      >= 0.8
+                         , tasty-quickcheck >= 0.8
       default-language:    Haskell2010
