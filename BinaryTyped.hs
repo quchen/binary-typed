@@ -52,9 +52,6 @@ module BinaryTyped (
 ) where
 
 import           GHC.Generics
-import           Control.Applicative
-import           Data.List
-import           Data.Monoid
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -65,7 +62,7 @@ import           Data.Binary
 import           Data.Binary.Get (ByteOffset)
 
 -- Crypto stuff for hashing
-import           Crypto.Hash
+import qualified Crypto.Hash as Crypto
 import           Data.Byteable (toBytes)
 
 
@@ -103,7 +100,8 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 
 
 
--- | Determine how the 'TypeInformation' should be created by 'typed'.
+-- | Different ways of including/verifying type information of serialized
+--   messages.
 data TypeFormat =
 
         -- | Compare types by their hash values, currently a 'MD5'
@@ -200,10 +198,10 @@ typecheck (Typed typeInformation x) = case typeInformation of
 typeHash :: Ty.TypeRep -> BS.ByteString
 typeHash = md5 . show where
 
-      md5 = toBytes . hashlazy'. encode
+      md5 = toBytes . hash . encode
 
-      hashlazy' :: BSL.ByteString -> Digest MD5
-      hashlazy' = hashlazy
+      hash :: BSL.ByteString -> Crypto.Digest Crypto.MD5
+      hash = Crypto.hashlazy
 
 
 
