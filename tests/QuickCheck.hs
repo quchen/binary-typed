@@ -3,7 +3,7 @@
 module QuickCheck (props) where
 
 
-import BinaryTyped
+import Data.Binary.Typed
 
 import Test.Tasty
 import Test.Tasty.QuickCheck

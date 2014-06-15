@@ -5,7 +5,7 @@ module HUnit (props) where
 
 import Data.Either
 
-import BinaryTyped
+import Data.Binary.Typed
 
 import Test.Tasty
 import Test.Tasty.HUnit

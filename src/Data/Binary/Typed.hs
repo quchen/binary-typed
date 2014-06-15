@@ -40,7 +40,7 @@
 -- 'Int', but is attempted to be decoded as 'Bool'.
 
 
-module BinaryTyped (
+module Data.Binary.Typed (
       Typed
 
       -- * Construction

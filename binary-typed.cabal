@@ -29,29 +29,28 @@ source-repository head
       location: https://github.com/quchen/binary-typed
 
 library
-      exposed-modules:     BinaryTyped
+      default-language:    Haskell2010
+      exposed-modules:     Data.Binary.Typed
       ghc-options:         -Wall
-      -- other-modules:
+      hs-source-dirs:      src
       other-extensions:    GADTs, DeriveGeneric
       build-depends:       base             >= 4.7 && < 5
                          , binary           >= 0.7
                          , byteable         >= 0.1
                          , bytestring       >= 0.9
                          , cryptohash       >= 0.11
-      -- hs-source-dirs:
-      default-language:    Haskell2010
 
 
 test-suite tasty
-      type:                exitcode-stdio-1.0
+      default-language:    Haskell2010
       ghc-options:         -Wall
       hs-source-dirs:      tests
       main-is:             Tests.hs
       other-extensions:    ScopedTypeVariables, NumDecimals
+      type:                exitcode-stdio-1.0
       build-depends:       base             >= 4.7 && < 5
                          , binary           >= 0.7
                          , binary-typed
                          , tasty            >= 0.8
                          , tasty-hunit      >= 0.8
                          , tasty-quickcheck >= 0.8
-      default-language:    Haskell2010
