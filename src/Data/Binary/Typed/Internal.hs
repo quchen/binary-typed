@@ -204,8 +204,12 @@ instance Binary TypeRep
 data TyCon = TyCon String -- Package
                    String -- Module
                    String -- Name
-      deriving (Eq, Ord, Show, Generic)
+      deriving (Eq, Ord, Generic)
 instance Binary TyCon
+
+-- | Show a 'TyCon' as \"package/module.name\".
+instance Show TyCon where
+      show (TyCon p m n) = p ++ "/" ++ m ++ "." ++ n
 
 
 
