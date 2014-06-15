@@ -10,6 +10,8 @@ module Data.Binary.Typed.Internal (
       -- * Core types
         Typed(..)
       , TypeInformation(..)
+      , TypeRep(..)
+      , TyCon(..)
 
       -- * Construction
       , typed
@@ -23,7 +25,8 @@ module Data.Binary.Typed.Internal (
 
       -- * Type information generators
       , typeHash
-      , getFull
+      , stripTyCon
+      , stripTypeRep
 ) where
 
 
@@ -115,9 +118,9 @@ typed :: Typeable a => TypeFormat -> a -> Typed a
 typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
-            Hashed -> HashedType (typeHash ty)
-            Shown  -> ShownType  (show     ty)
-            Full   -> FullType   (getFull  ty)
+            Hashed -> HashedType (typeHash     ty)
+            Shown  -> ShownType  (show         ty)
+            Full   -> FullType   (stripTypeRep ty)
 
 
 
@@ -146,9 +149,9 @@ typecheck (Typed typeInformation x) = case typeInformation of
 
 
       where expectedType = typeOf x
-            expectedHash = typeHash expectedType
-            expectedShow = show     expectedType
-            expectedFull = getFull  expectedType
+            expectedHash = typeHash     expectedType
+            expectedShow = show         expectedType
+            expectedFull = stripTypeRep expectedType
 
             hashErrorMsg hash = unwords [ "Type error: expected type"
                                         , expectedShow
@@ -201,16 +204,19 @@ instance Binary TyCon
 
 
 
--- | Get (only) the representation of a data type, i.e. strip all hashes.
-getFull :: Ty.TypeRep -> TypeRep
-getFull typerep = let (tycon, args) = Ty.splitTyConApp typerep
-                  in  TypeRep (stripFP tycon) (map getFull args)
-      where -- TyCon without fingerprint.
-            stripFP :: Ty.TyCon -> TyCon
-            stripFP tycon = TyCon (Ty.tyConPackage tycon)
-                                  (Ty.tyConModule  tycon)
-                                  (Ty.tyConName    tycon)
-                                  -- The Typeable API doesn't expose the
-                                  -- TyCon constructor, so pattern matching
-                                  -- is not possible here (without depending
-                                  -- on Typeable.Internal).
+-- | Strip a 'Ty.TypeRep' off the fingerprint.
+stripTypeRep :: Ty.TypeRep -> TypeRep
+stripTypeRep typerep = TypeRep (stripTyCon tycon) (map stripTypeRep args)
+      where (tycon, args) = Ty.splitTyConApp typerep
+
+
+
+-- | Strip a 'Ty.TyCon' off the fingerprint.
+stripTyCon :: Ty.TyCon -> TyCon
+stripTyCon tycon = TyCon (Ty.tyConPackage tycon)
+                         (Ty.tyConModule  tycon)
+                         (Ty.tyConName    tycon)
+                         -- The Typeable API doesn't expose the
+                         -- TyCon constructor, so pattern matching
+                         -- is not possible here (without depending
+                         -- on Typeable.Internal).
