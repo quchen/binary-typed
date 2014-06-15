@@ -13,9 +13,9 @@ module Data.Binary.Typed (
 
 
 
-      Typed
 
       -- * Construction, deconstruction
+        Typed
       , typed
       , TypeFormat(..)
       , erase
@@ -131,6 +131,6 @@ decodeTyped bs = case decodeTypedOrFail bs of
 -- @
 -- test3 = let val = 10 :: 'Int'
 --             enc = 'encodeTyped' val
---             dec = 'decodeTyped' enc :: Either String Bool
+--             dec = 'decodeTyped' enc :: 'Either' 'String' 'Bool'
 --         in  'print' dec
 -- @
