@@ -1,6 +1,6 @@
 # Typed Binary lib
 
-Drafty, untested and work in progress. Generate Haddock docs (`make haddock`)
+Drafty, untested and work in progress. Generate Haddock docs (`cabal haddock`)
 for useful documentation.
 
 [![(Travis image broken)](https://travis-ci.org/quchen/binary-typed.png?branch=master)][travis]
