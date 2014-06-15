@@ -69,6 +69,9 @@ instance Show a => Show (Typed a) where
                                       ShownType  {} -> Shown
                                       FullType   {} -> Full
 
+-- | Ensures data is decoded as the appropriate type with high or total
+--   confidence (depending on with what 'TypeFormat' the 'Typed' was
+--   constructed).
 instance (Binary a, Typeable a) => Binary (Typed a) where
       get = do (ty, value) <- get
                let result = Typed ty value
@@ -124,12 +127,14 @@ typed format x = Typed typeInformation x where
 
 
 
--- | Extract the value of a 'Typed'.
+-- | Extract the value of a 'Typed', i.e. strip off the explicit type
+--   information.
 --
---   The well-typedness of this is ensured by the 'typed' smart constructor and
---   the 'Binary' instance of 'Typed'.
+--   This function is safe to use for all 'Typed' values created by the public
+--   API, since all construction sites ensure the actual type matches the
+--   contained type description.
 erase :: Typed a -> a
-erase (Typed _ x) = x
+erase (Typed _ty value) = value
 
 
 

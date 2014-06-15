@@ -1,48 +1,23 @@
--- | Defines a type-safe 'Data.Binary.Binary' instance.
---
--- Standard 'Binary' serializes to 'Data.ByteString.ByteString', which
--- is an untyped format; deserialization of unexpected input usually results
--- in unusable data.
---
--- This module defines a 'Typed' type, which allows serializing both a value
--- and the type of that value; deserialization can then check whether the
--- received data was sent assuming the right type, and error messages
--- may provide insight into the type mismatch.
---
--- Example without type safety:
---
--- @
--- test = let val = 10 :: 'Int'
---            enc = 'Data.Binary.encode' val
---            dec = 'Data.Binary.decode' enc :: 'Bool'
---        in  'print' dec
--- @
---
--- This behaves unexpectedly: An 'Int' value is converted to a 'Bool', which
--- corresponds to a wacky type coercion. The receiving end has no way of
--- knowing what the incoming data should have been interpreted as.
---
--- Using 'Typed', this can be avoided:
---
--- @
--- test' = let val = 10 :: 'Int'
---             enc = 'Data.Binary.encode' ('typed' 'Full' val)
---             dec = 'Data.Binary.decode' enc :: 'Typed' 'Bool'
---         in  'print' dec
--- @
---
--- This time 'Data.Binary.decode' raises an error: the incoming data is tagged
--- as an 'Int', but is attempted to be decoded as 'Bool'.
-
+-- | Defines a type-safe 'Data.Binary.Binary' instance to ensure data is
+--   decoded with the type it was serialized from.
 
 module Data.Binary.Typed (
+
+      -- * How to use
+
+      -- ** Motivation
+      -- $motivation
+
+      -- ** Practical example
+      -- $usage
+
+
+
       Typed
 
-      -- * Construction
+      -- * Construction, deconstruction
       , typed
       , TypeFormat(..)
-
-      -- * Deconstruction
       , erase
 
       -- * Convenience API functions
@@ -105,3 +80,57 @@ decodeTyped :: (Typeable a, Binary a)
 decodeTyped bs = case decodeTypedOrFail bs of
       Left  (_rest, _offset, err)   -> Left err
       Right (_rest, _offset, value) -> Right value
+
+
+
+
+-- $motivation
+--
+-- Standard 'Binary' serializes to 'Data.ByteString.ByteString', which
+-- is an untyped format; deserialization of unexpected input usually results
+-- in unusable data.
+--
+-- This module defines a 'Typed' type, which allows serializing both a value
+-- and the type of that value; deserialization can then check whether the
+-- received data was sent assuming the right type, and error messages
+-- may provide insight into the type mismatch.
+--
+-- Example without type safety:
+--
+-- @
+-- test1 = let val = 10 :: 'Int'
+--             enc = 'Data.Binary.encode' val
+--             dec = 'Data.Binary.decode' enc :: 'Bool'
+--         in  'print' dec
+-- @
+--
+-- This behaves unexpectedly: An 'Int' value is converted to a 'Bool', which
+-- corresponds to a wacky type coercion. The receiving end has no way of
+-- knowing what the incoming data should have been interpreted as.
+--
+-- Using 'Typed', this can be avoided:
+--
+-- @
+-- test2 = let val = 10 :: 'Int'
+--             enc = 'Data.Binary.encode' ('typed' 'Full' val)
+--             dec = 'Data.Binary.decode' enc :: 'Typed' 'Bool'
+--         in  'print' dec
+-- @
+--
+-- This time 'Data.Binary.decode' raises an error: the incoming data is tagged
+-- as an 'Int', but is attempted to be decoded as 'Bool'.
+
+
+
+-- $usage
+--
+-- For convenience, this module exports a couple of convenience functions that
+-- have the type-mangling baked in already. The above example could have been
+-- written as
+--
+-- @
+-- test3 = let val = 10 :: 'Int'
+--             enc = 'encodeTyped' val
+--             dec = 'decodeTyped' enc :: Either String Bool
+--         in  'print' dec
+-- @
