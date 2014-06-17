@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 
@@ -60,8 +59,10 @@ instance Binary TypeInformation
 
 -- | A value suitable to be typechecked using the contained extra type
 --   information.
-data Typed a where
-      Typed :: Typeable a => TypeInformation -> a -> Typed a
+data Typed a = Typed TypeInformation a
+      -- ^ Using this data constructor directly is unsafe, as it allows
+      -- construction of ill-typed 'Typed'data. Use the 'typed' smart
+      -- constructor unless you really need 'Typed'.
 
 instance Show a => Show (Typed a) where
       show (Typed ty x) = "typed " ++ show format  ++ " (" ++ show x ++ ")"
@@ -136,9 +137,9 @@ erase (Typed _ty value) = value
 
 
 
--- | Typecheck a 'Typed'. Returns the input if the types work out, or an error
+-- | Typecheck a 'Typed'. Returns the input if the types work out, and an error
 --   message otherwise.
-typecheck :: Typed a -> Either String (Typed a)
+typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
       HashedType hash | expectedHash /= hash -> Left (hashErrorMsg hash)
       ShownType str   | expectedShow /= str  -> Left (shownErrorMsg str)
@@ -198,10 +199,8 @@ instance Show TypeRep where
 
 
 
--- | 'Ty.TyCon' without the (internal) fingerprint
-data TyCon = TyCon String -- Package
-                   String -- Module
-                   String -- Name
+-- | 'Ty.TyCon' without the (internal) fingerprint.
+data TyCon = TyCon String String String -- Package, module, constructor name
       deriving (Eq, Ord, Generic)
 instance Binary TyCon
 
