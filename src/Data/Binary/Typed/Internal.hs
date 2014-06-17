@@ -48,9 +48,10 @@ import           Data.Byteable (toBytes)
 -- ^ Type information stored alongside a value to be serialized, so that the
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
-data TypeInformation = HashedType BS.ByteString
-                     | ShownType  String
-                     | FullType   TypeRep
+data TypeInformation = HashedType      BS.ByteString
+                     | ShownType       String
+                     | HashedShownType BS.ByteString String
+                     | FullType        TypeRep
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
@@ -66,9 +67,10 @@ data Typed a = Typed TypeInformation a
 
 instance Show a => Show (Typed a) where
       show (Typed ty x) = "typed " ++ show format  ++ " (" ++ show x ++ ")"
-            where format = case ty of HashedType {} -> Hashed
-                                      ShownType  {} -> Shown
-                                      FullType   {} -> Full
+            where format = case ty of HashedType       {} -> Hashed
+                                      ShownType        {} -> Shown
+                                      HashedShownType  {} -> HashedShown
+                                      FullType         {} -> Full
 
 -- | Ensures data is decoded as the appropriate type with high or total
 --   confidence (depending on with what 'TypeFormat' the 'Typed' was
@@ -104,6 +106,14 @@ data TypeFormat =
         --   * Useful type errors ("expected X, received Y").
       | Shown
 
+        -- | Combination of 'Hashed' and 'Shown'.
+        --
+        --   * A few bytes larger than 'Shown' alone, due to the hash.
+        --   * Much more collision-resistant than its constituents, since both
+        --     the hash and the text representation have to match.
+        --   * Useful type errors (like 'Shown').
+      | HashedShown
+
         -- | Compare the full representation of a data type.
         --
         --   * Much more verbose than hashes.
@@ -120,9 +130,10 @@ typed :: Typeable a => TypeFormat -> a -> Typed a
 typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
-            Hashed -> HashedType (typeHash     ty)
-            Shown  -> ShownType  (show         ty)
-            Full   -> FullType   (stripTypeRep ty)
+            Hashed      -> HashedType       (typeHash     ty)
+            Shown       -> ShownType        (show         ty)
+            HashedShown -> HashedShownType  (typeHash     ty) (show ty)
+            Full        -> FullType         (stripTypeRep ty)
 
 
 
@@ -144,6 +155,8 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
       HashedType hash | expectedHash /= hash -> Left (hashErrorMsg hash)
       ShownType str   | expectedShow /= str  -> Left (shownErrorMsg str)
       FullType full   | expectedFull /= full -> Left (fullErrorMsg full)
+      HashedShownType hash str | (expectedHash, expectedShow) /= (hash, str)
+                                             -> Left (hashedShownErrorMsg hash str)
       _no_type_error -> Right ty
 
 
@@ -165,6 +178,16 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
                                   , expectedShow ++ ","
                                   , "but received data with type"
                                   , str
+                                  ]
+      hashedShownErrorMsg hash str = unwords
+                                  [ "Type error: expected type"
+                                  , expectedShow
+                                  , "with hash"
+                                  , showBSHex expectedHash ++ ","
+                                  , "but received data with type"
+                                  , str
+                                  , "and hash"
+                                  , showBSHex hash
                                   ]
       fullErrorMsg full = unwords [ "Type error: expected type"
                                   , expectedShow ++ ","
@@ -200,7 +223,7 @@ instance Show TypeRep where
 
 
 -- | 'Ty.TyCon' without the (internal) fingerprint.
-data TyCon = TyCon String String String -- Package, module, constructor name
+data TyCon = TyCon String String String -- ^ Package, module, constructor name
       deriving (Eq, Ord, Generic)
 instance Binary TyCon
 

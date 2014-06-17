@@ -56,6 +56,7 @@ error_coercions_simple = tree tests where
       tree = testGroup "Encode Int, decode Bool => Type error"
       tests = [ error_int_bool_hashed
               , error_int_bool_shown
+              , error_int_bool_hashedshown
               , error_int_bool_full
               ]
 
@@ -76,6 +77,15 @@ error_int_bool_shown =
       isLeft (wackyCoercion Shown (123 :: Int) :: Either String Bool)
       @?
       "No type error when coercing Int to Bool (with shown type info)"
+
+-- | See 'error_coercions_simple'
+error_int_bool_hashedshown :: TestTree
+error_int_bool_hashedshown =
+      testCase "Hashed+Shown" $
+
+      isLeft (wackyCoercion HashedShown (123 :: Int) :: Either String Bool)
+      @?
+      "No type error when coercing Int to Bool (with hashed+shown type info)"
 
 -- | See 'error_coercions_simple'
 error_int_bool_full :: TestTree
@@ -103,6 +113,7 @@ error_coercions_complicated = tree tests where
       tree = testGroup "Complicated type coercion with small discrepancy"
       tests = [ error_long_type_hashed
               , error_long_type_shown
+              , error_long_type_hashedshown
               , error_long_type_full
               ]
 
@@ -127,6 +138,17 @@ error_long_type_shown =
       isLeft (wackyCoercion Shown long_type_input `asTypeOf` long_type_output)
       @?
       "No type error doing a complicated coercion (with shown type info)"
+
+
+
+-- | See 'error_coercions_complicated'
+error_long_type_hashedshown :: TestTree
+error_long_type_hashedshown =
+      testCase "Hashed+Shown" $
+
+      isLeft (wackyCoercion HashedShown long_type_input `asTypeOf` long_type_output)
+      @?
+      "No type error doing a complicated coercion (with hashed+shown type info)"
 
 
 

@@ -36,9 +36,10 @@ prop_inverses_int = tree tests where
       tree = localOption (QuickCheckMaxSize maxBound)
            . testGroup "Int"
 
-      tests = [ testProperty "Hashed" (prop Hashed)
-              , testProperty "Shown"  (prop Shown)
-              , testProperty "Full"   (prop Full)
+      tests = [ testProperty "Hashed"       (prop Hashed)
+              , testProperty "Shown"        (prop Shown)
+              , testProperty "Hashed+Shown" (prop HashedShown)
+              , testProperty "Full"         (prop Full)
               ]
 
       prop :: TypeFormat -> Int -> Bool
@@ -53,9 +54,10 @@ prop_inverses_string = tree tests where
       tree = localOption (QuickCheckMaxSize 100)
            . testGroup "String"
 
-      tests = [ testProperty "Hashed" (prop Hashed)
-              , testProperty "Shown"  (prop Shown)
-              , testProperty "Full"   (prop Full)
+      tests = [ testProperty "Hashed"       (prop Hashed)
+              , testProperty "Shown"        (prop Shown)
+              , testProperty "Hashed+Shown" (prop HashedShown)
+              , testProperty "Full"         (prop Full)
               ]
 
       prop :: TypeFormat -> String -> Bool
