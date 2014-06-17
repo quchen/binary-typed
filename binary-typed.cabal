@@ -8,8 +8,7 @@ Description:   Allows `Binary` serialization tagged with type information,
                This package serves the same purpose as tagged-binary,
                with a couple of key differences:
                .
-               * Soundness of the data is ensured at each construction
-                 site; all other data handling is still done in Binary.
+               * No depencency on @Internal@ modules of other libraries.
                * Support of different kinds of serialized type
                  annotations, each with specific strengths and weaknesses.
                * Error messages provide details on type errors.

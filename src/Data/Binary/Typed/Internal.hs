@@ -25,8 +25,10 @@ module Data.Binary.Typed.Internal (
 
       -- * Type information generators
       , typeHash
-      , stripTyCon
       , stripTypeRep
+      , unStripTypeRep
+      , stripTyCon
+      , unStripTyCon
 ) where
 
 
@@ -188,10 +190,14 @@ typeHash = md5 . show where
 
 
 
--- | 'Ty.TypeRep' without the (internal) fingerprint
+-- | 'Ty.TypeRep' without the (internal) fingerprint.
 data TypeRep = TypeRep TyCon [TypeRep]
-      deriving (Eq, Ord, Show, Generic)
+      deriving (Eq, Ord, Generic)
 instance Binary TypeRep
+
+-- | Identical to 'Ty.TypeRep's instance.
+instance Show TypeRep where
+      show = show . unStripTypeRep
 
 
 
@@ -202,20 +208,26 @@ data TyCon = TyCon String -- Package
       deriving (Eq, Ord, Generic)
 instance Binary TyCon
 
--- | Show a 'TyCon' as \"package/module.name\".
+-- | Identical to 'Ty.TyCon's instance.
 instance Show TyCon where
-      show (TyCon p m n) = p ++ "/" ++ m ++ "." ++ n
+      show = show . unStripTyCon
 
 
 
--- | Strip a 'Ty.TypeRep' off the fingerprint.
+-- | Strip a 'Ty.TypeRep' off the fingerprint. Inverse of 'unStripTypeRep'.
 stripTypeRep :: Ty.TypeRep -> TypeRep
 stripTypeRep typerep = TypeRep (stripTyCon tycon) (map stripTypeRep args)
       where (tycon, args) = Ty.splitTyConApp typerep
 
 
+-- | Add a fingerprint to a 'TypeRep'. Inverse of 'stripTypeRep'.
+unStripTypeRep :: TypeRep -> Ty.TypeRep
+unStripTypeRep (TypeRep tyCon args) = Ty.mkTyConApp (unStripTyCon tyCon)
+                                                    (map unStripTypeRep args)
 
--- | Strip a 'Ty.TyCon' off the fingerprint.
+
+
+-- | Strip a 'Ty.TyCon' off the fingerprint. Inverse of 'unStripTyCon'.
 stripTyCon :: Ty.TyCon -> TyCon
 stripTyCon tycon = TyCon (Ty.tyConPackage tycon)
                          (Ty.tyConModule  tycon)
@@ -224,3 +236,9 @@ stripTyCon tycon = TyCon (Ty.tyConPackage tycon)
                          -- TyCon constructor, so pattern matching
                          -- is not possible here (without depending
                          -- on Typeable.Internal).
+
+
+
+-- | Add a fingerprint to a 'TyCon'. Inverse of 'stripTyCon'.
+unStripTyCon :: TyCon -> Ty.TyCon
+unStripTyCon (TyCon p m n) = Ty.mkTyCon3 p m n -- package, module, name
