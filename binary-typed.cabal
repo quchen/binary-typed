@@ -42,7 +42,7 @@ library
 
 test-suite tasty
       default-language:    Haskell2010
-      ghc-options:         -Wall
+      ghc-options:         -Wall -fno-warn-orphans
       hs-source-dirs:      tests
       main-is:             Tests.hs
       other-extensions:    ScopedTypeVariables, NumDecimals

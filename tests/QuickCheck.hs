@@ -17,7 +17,7 @@ import Test.Tasty.QuickCheck
 props :: TestTree
 props = tree tests where
       tree = testGroup "QuickCheck"
-      tests = [ prop_hashfunction_total
+      tests = [ prop_typerep
               , prop_inverses
               ]
 
@@ -41,10 +41,10 @@ prop_inverses_int = tree tests where
            . localOption (QuickCheckTests 1e3)
            . testGroup "Int"
 
-      tests = [ testProperty "Untyped"      (prop Untyped)
-              , testProperty "Hashed"       (prop Hashed)
-              , testProperty "Shown"        (prop Shown)
-              , testProperty "Full"         (prop Full)
+      tests = [ testProperty "Untyped" (prop Untyped)
+              , testProperty "Hashed"  (prop Hashed)
+              , testProperty "Shown"   (prop Shown)
+              , testProperty "Full"    (prop Full)
               ]
 
       prop :: TypeFormat -> Int -> Bool
@@ -60,10 +60,10 @@ prop_inverses_string = tree tests where
            . localOption (QuickCheckTests 1e3)
            . testGroup "String"
 
-      tests = [ testProperty "Untyped"      (prop Untyped)
-              , testProperty "Hashed"       (prop Hashed)
-              , testProperty "Shown"        (prop Shown)
-              , testProperty "Full"         (prop Full)
+      tests = [ testProperty "Untyped" (prop Untyped)
+              , testProperty "Hashed"  (prop Hashed)
+              , testProperty "Shown"   (prop Shown)
+              , testProperty "Full"    (prop Full)
               ]
 
       prop :: TypeFormat -> String -> Bool
@@ -71,22 +71,31 @@ prop_inverses_string = tree tests where
 
 -- | Generate lots of hashes from random 'typeRep's and see whether one of them
 --   crashes.
-prop_hashfunction_total :: TestTree
-prop_hashfunction_total = tree tests where
-      tree = localOption (QuickCheckTests 1e5)
+prop_typerep :: TestTree
+prop_typerep = tree tests where
+      tree = localOption (QuickCheckTests 1e4)
            . localOption (QuickCheckMaxSize 1e3)
-           . testGroup "Hash function total?"
-      tests = [ testProperty "Random hashes" prop ]
+           . testGroup "TypeRep, TyCon"
 
-      prop = forAll typeRepGen
+      tests = [ prop_hash_total
+              ]
+
+prop_hash_total :: TestTree
+prop_hash_total = testProperty "Hash function total" prop where
+      prop = forAll arbitrary
                     (\tyCon -> hashType (unStripTypeRep tyCon) `seq` True)
 
 
 
-tyConGen :: Gen TyCon
-tyConGen = TyCon <$> arbitrary <*> arbitrary <*> arbitrary
+instance Arbitrary TyCon where
+      arbitrary = TyCon <$> arbitrary <*> arbitrary <*> arbitrary
 
-typeRepGen :: Gen TypeRep
-typeRepGen = TypeRep <$> tyConGen <*> args
-      where args = listOf (modifySize (`div` (2::Int)) typeRepGen)
-            modifySize f gen = sized (\n -> resize (f n) gen)
+instance Arbitrary TypeRep where
+      arbitrary = TypeRep <$> arbitrary <*> args
+            where args = listOf (modifySize (`div` (2::Int)) arbitrary)
+
+
+
+-- | Modify the size parameter of a 'Gen'.
+modifySize :: (Int -> Int) -> Gen a -> Gen a
+modifySize f gen = sized (\n -> resize (f n) gen)
