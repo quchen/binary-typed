@@ -41,7 +41,16 @@ import           Data.Binary.Typed.Internal
 
 
 -- | Encode a 'Typeable' value to 'BSL.ByteString' that includes type
---   information.
+-- information.
+--
+-- This is just a convenient wrapper to calling 'encode' on data created with
+-- 'typed' manually,
+--
+-- @
+-- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
+-- -- is identical to
+-- encoded = 'encode' ('typed' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double'))
+-- @
 encodeTyped :: (Typeable a, Binary a)
             => TypeFormat
             -> a
@@ -52,6 +61,16 @@ encodeTyped format value = encode (typed format value)
 
 -- | Decode a typed value, throwing an error at runtime on failure.
 --   Typed cousin of 'Data.Binary.decode'.
+--
+-- @
+-- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
+--
+-- -- \<value\>
+-- unsafeDecodeTyped encoded (String, Int, Double)
+--
+-- -- (Descriptive) runtime error
+-- unsafeDecodeTyped encoded (Char, Int, Double)
+-- @
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
@@ -61,7 +80,9 @@ unsafeDecodeTyped = erase . decode
 
 -- | Safely decode data, yielding 'Either' an error 'String' or the value,
 --   along with meta-information of the consumed binary data.
---   Typed cousin of 'Data.Binary.decodeOrFail'.
+--
+--   * Typed cousin of 'Data.Binary.decodeOrFail'.
+--   * Like 'decodeTyped', but with additional data.
 decodeTypedOrFail :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> Either (BSL.ByteString, ByteOffset, String)
@@ -73,7 +94,17 @@ decodeTypedOrFail input = case decodeOrFail input of
 
 
 -- | Safely decode data, yielding 'Either' an error 'String' or the value.
---   Equivalent to 'decodeTypedOrFail' stripped of the meta-information.
+--   Equivalent to 'decodeTypedOrFail' stripped of the non-essential data.
+--
+-- @
+-- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
+--
+-- -- Right \<value\>:
+-- 'decodeTyped' encoded :: 'Either' 'String' ('String', 'Int', 'Double')
+--
+-- -- Left "Type error: expected (Char, Int, Double), got (String, Int, Double)"
+-- 'decodeTyped' encoded :: 'Either' 'String' ('Char', 'Int', 'Double')
+-- @
 decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a

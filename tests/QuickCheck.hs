@@ -69,8 +69,9 @@ prop_inverses_string = tree tests where
       prop :: TypeFormat -> String -> Bool
       prop format i = unsafeDecodeTyped (encodeTyped format i) == i
 
--- | Generate lots of hashes from random 'typeRep's and see whether one of them
---   crashes.
+
+
+-- | Test properties of 'TypeRep's and 'TyCon's.
 prop_typerep :: TestTree
 prop_typerep = tree tests where
       tree = localOption (QuickCheckTests 1e4)
@@ -80,6 +81,10 @@ prop_typerep = tree tests where
       tests = [ prop_hash_total
               ]
 
+
+
+-- | Generate lots of hashes from random 'typeRep's and see whether one of them
+--   crashes.
 prop_hash_total :: TestTree
 prop_hash_total = testProperty "Hash function total" prop where
       prop = forAll arbitrary

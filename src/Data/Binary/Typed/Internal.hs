@@ -34,7 +34,7 @@ import           GHC.Generics
 import           Data.Monoid
 import           Control.Applicative
 import           Numeric (showHex)
-import qualified Data.ByteString      as BS
+-- import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 
 import           Data.Typeable (Typeable, typeOf)
@@ -59,6 +59,7 @@ data TypeInformation = NoType
 
 instance Binary TypeInformation
 
+-- | A hash value of a 'TypeRep'.
 data Hash = Hash Word64 Word64
       deriving (Eq, Ord)
 
@@ -117,12 +118,12 @@ data TypeFormat =
         --   * Requires only a handful of bytes per serialization.
         --   * Subject to false positive due to hash collisions, although in
         --     practice this should almost never happen.
-        --   * Type errors cannot tell the expected type ("Expected X, received
+        --   * Type errors cannot tell the provided type ("Expected X, received
         --     type with hash H")
       | Hashed
 
         -- | Compare 'String' representation of types, obtained by calling
-        --   'show' on the 'Ty.TypeRep', and also include a hash value
+        --   'show' on the 'TypeRep', and also include a hash value
         --   (like 'Hashed'). The former is mostly for readable error messages,
         --   the latter provides collision resistance.
         --
@@ -136,9 +137,16 @@ data TypeFormat =
 
         -- | Compare the full representation of a data type.
         --
-        --   * Much more verbose than hashes.
-        --   * Correct comparison (no false positives).
-        --   * Useful type errors ("expected X, received Y").
+        --   * More verbose than 'Hashed' and 'Shown'. As a rule of thumb,
+        --     transmitted data is roughly the same as 'Shown', but all names
+        --     are fully qualified (package, module, type name).
+        --   * Correct comparison (no false positives). An semi-exception here
+        --     is when types change between package versions:
+        --     @package-1.0 Foo.X@ and @package-1.1 Foo.X@ count as the same
+        --     type.
+        --   * Useful type errors ("expected X, received Y"). All types are
+        --     unqualified though, making @Foo.X@ and @Bar.X@ look identical in
+        --     error messages.
       | Full
 
       deriving (Eq, Ord, Show)
@@ -146,6 +154,15 @@ data TypeFormat =
 
 
 -- | Construct a 'Typed' value using the chosen type format.
+--
+-- Example:
+--
+-- @
+-- value = 'typed' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
+-- encded = 'encode' value
+-- @
+--
+-- The decode site can now verify whether decoding happens with the right type.
 typed :: Typeable a => TypeFormat -> a -> Typed a
 typed format x = Typed typeInformation x where
       ty = typeOf x
@@ -158,11 +175,15 @@ typed format x = Typed typeInformation x where
 
 
 -- | Extract the value of a 'Typed', i.e. strip off the explicit type
---   information.
+-- information.
 --
---   This function is safe to use for all 'Typed' values created by the public
---   API, since all construction sites ensure the actual type matches the
---   contained type description.
+-- This function is safe to use for all 'Typed' values created by the public
+-- API, since all construction sites ensure the actual type matches the
+-- contained type description.
+--
+-- @
+-- 'erase' ('typed' format x) == x
+-- @
 erase :: Typed a -> a
 erase (Typed _ty value) = value
 
@@ -170,41 +191,43 @@ erase (Typed _ty value) = value
 
 -- | Typecheck a 'Typed'. Returns the input if the types work out, and an error
 --   message otherwise.
+
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
-      HashedType hash    | expectedHash /= hash -> Left (hashErrorMsg hash)
-      FullType full      | expectedFull /= full -> Left (fullErrorMsg full)
-      ShownType hash str | (expectedHash, expectedShow) /= (hash, str)
-                                                -> Left (shownErrorMsg hash str)
+      HashedType hash    | exHash /= hash -> Left (hashErrorMsg hash)
+      FullType full      | exFull /= full -> Left (fullErrorMsg full)
+      ShownType hash str | (exHash, exShow) /= (hash, str)
+                                          -> Left (shownErrorMsg hash str)
       _no_type_error -> Right ty
 
 
       where
 
-      expectedType = typeOf x
-      expectedHash = hashType     expectedType
-      expectedShow = show         expectedType
-      expectedFull = stripTypeRep expectedType
+      -- ex = expected
+      exType = typeOf x
+      exHash = hashType     exType
+      exShow = show         exType
+      exFull = stripTypeRep exType
 
       hashErrorMsg hash = unwords [ "Type error: expected type"
-                                  , expectedShow
+                                  , exShow
                                   , "with hash"
-                                  , show expectedHash ++ ","
+                                  , show exHash ++ ","
                                   , "but received data with hash"
                                   , show hash
                                   ]
       shownErrorMsg hash str = unwords
                                   [ "Type error: expected type"
-                                  , expectedShow
+                                  , exShow
                                   , "with hash"
-                                  , show expectedHash ++ ","
+                                  , show exHash ++ ","
                                   , "but received data with type"
                                   , str
                                   , "and hash"
                                   , show hash
                                   ]
       fullErrorMsg full = unwords [ "Type error: expected type"
-                                  , expectedShow ++ ","
+                                  , exShow ++ ","
                                   , "but received data with type"
                                   , show full
                                   ]
@@ -223,10 +246,10 @@ hashType = md5 . show where
       -- Convert a ByteString to a Hash value by decoding two blocks of
       -- 8 bytes each. The padding is done in case the input is malformed,
       -- making this function total.
-      toHash bs = let (a, b) = BSL.splitAt 8 bs
-                      hash1 = decode (pad 8 a)
-                      hash2 = decode (pad 8 b)
-                  in  Hash hash1 hash2
+      toHash bs = let (bsA,   bsB)   = BSL.splitAt 8 bs
+                      (bsA',  bsB')  = (pad 8 bsA, pad 8 bsB)
+                      (hashA, hashB) = (decode bsA', decode bsB')
+                  in  Hash hashA hashB
 
       -- Pad a lazy bytestring with zeros until it has a certain length.
       pad n bs = bs <> BSL.replicate (n - BSL.length bs) 0
@@ -257,6 +280,7 @@ instance Show TyCon where
 stripTypeRep :: Ty.TypeRep -> TypeRep
 stripTypeRep typerep = TypeRep (stripTyCon tycon) (map stripTypeRep args)
       where (tycon, args) = Ty.splitTyConApp typerep
+
 
 
 -- | Add a fingerprint to a 'TypeRep'. Inverse of 'stripTypeRep'.
