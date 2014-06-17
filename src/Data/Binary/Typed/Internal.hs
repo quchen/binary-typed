@@ -74,10 +74,8 @@ instance Show a => Show (Typed a) where
 --   constructed).
 instance (Binary a, Typeable a) => Binary (Typed a) where
       get = do (ty, value) <- get
-               let result = Typed ty value
-               case typecheck result of
-                     Left err -> fail   err -- "fail" is safe in Get Monad
-                     Right _  -> return result
+               either fail return (typecheck (Typed ty value))
+               -- NB: 'fail' is safe in Get Monad
       put (Typed ty value) = put (ty, value)
 
 
@@ -138,43 +136,40 @@ erase (Typed _ty value) = value
 
 
 
--- | Typecheck a 'Typed'. The result is either the contained value, or an
---   error message.
-typecheck :: Typed a -> Either String a
-typecheck (Typed typeInformation x) = case typeInformation of
-      HashedType hash
-            | expectedHash == hash -> Right x
-            | otherwise            -> Left (hashErrorMsg hash)
-      ShownType str
-            | expectedShow == str  -> Right x
-            | otherwise            -> Left (shownErrorMsg str)
-      FullType full
-            | expectedFull == full -> Right x
-            | otherwise            -> Left (fullErrorMsg full)
+-- | Typecheck a 'Typed'. Returns the input if the types work out, or an error
+--   message otherwise.
+typecheck :: Typed a -> Either String (Typed a)
+typecheck ty@(Typed typeInformation x) = case typeInformation of
+      HashedType hash | expectedHash /= hash -> Left (hashErrorMsg hash)
+      ShownType str   | expectedShow /= str  -> Left (shownErrorMsg str)
+      FullType full   | expectedFull /= full -> Left (fullErrorMsg full)
+      _no_type_error -> Right ty
 
 
-      where expectedType = typeOf x
-            expectedHash = typeHash     expectedType
-            expectedShow = show         expectedType
-            expectedFull = stripTypeRep expectedType
+      where
 
-            hashErrorMsg hash = unwords [ "Type error: expected type"
-                                        , expectedShow
-                                        , "with hash"
-                                        , showBSHex expectedHash ++ ","
-                                        , "but received data with hash"
-                                        , showBSHex hash
-                                        ]
-            shownErrorMsg str = unwords [ "Type error: expected type"
-                                        , expectedShow ++ ","
-                                        , "but received data with type"
-                                        , str
-                                        ]
-            fullErrorMsg full = unwords [ "Type error: expected type"
-                                        , expectedShow ++ ","
-                                        , "but received data with type"
-                                        , show full
-                                        ]
+      expectedType = typeOf x
+      expectedHash = typeHash     expectedType
+      expectedShow = show         expectedType
+      expectedFull = stripTypeRep expectedType
+
+      hashErrorMsg hash = unwords [ "Type error: expected type"
+                                  , expectedShow
+                                  , "with hash"
+                                  , showBSHex expectedHash ++ ","
+                                  , "but received data with hash"
+                                  , showBSHex hash
+                                  ]
+      shownErrorMsg str = unwords [ "Type error: expected type"
+                                  , expectedShow ++ ","
+                                  , "but received data with type"
+                                  , str
+                                  ]
+      fullErrorMsg full = unwords [ "Type error: expected type"
+                                  , expectedShow ++ ","
+                                  , "but received data with type"
+                                  , show full
+                                  ]
 
 -- | Show a 'BS.ByteString' in lower-case hex format (e.g. @1234abc567@).
 showBSHex :: BS.ByteString -> String
