@@ -167,4 +167,5 @@ long_type_input ::                (Either (Either X (), Either X (Either String 
 long_type_input = (Left (Right (), Right (Left "hello")), "world")       ------ Different types deep down
                                                                          ------
 long_type_output :: Either String (Either (Either X (), Either X (Either Char   X)) X, String)
-long_type_output = undefined
+long_type_output = error "long_type_output should never be evaluated, it is\
+                         \ only provided for its type"
