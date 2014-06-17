@@ -7,28 +7,26 @@
 --
 -- __Not recommended to be used from within other independent libraries.__
 module Data.Binary.Typed.Internal (
-      -- * Core types
+
+      -- * 'Typed'
         Typed(..)
       , TypeInformation(..)
-      , TypeRep(..)
-      , TyCon(..)
-
-      -- * Construction
       , typed
       , TypeFormat(..)
-
-      -- * Verification
       , typecheck
-
-      -- * Deconstruction
       , erase
 
-      -- * Type information generators
-      , typeHash
+      -- * 'TypeRep'
+      , TypeRep(..)
       , stripTypeRep
       , unStripTypeRep
+      , typeHash
+
+      -- * 'TyCon'
+      , TyCon(..)
       , stripTyCon
       , unStripTyCon
+
 ) where
 
 
@@ -195,7 +193,6 @@ data TypeRep = TypeRep TyCon [TypeRep]
       deriving (Eq, Ord, Generic)
 instance Binary TypeRep
 
--- | Identical to 'Ty.TypeRep's instance.
 instance Show TypeRep where
       show = show . unStripTypeRep
 
@@ -208,7 +205,6 @@ data TyCon = TyCon String -- Package
       deriving (Eq, Ord, Generic)
 instance Binary TyCon
 
--- | Identical to 'Ty.TyCon's instance.
 instance Show TyCon where
       show = show . unStripTyCon
 
