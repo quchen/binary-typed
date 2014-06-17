@@ -10,6 +10,7 @@ module Data.Binary.Typed.Internal (
       -- * 'Typed'
         Typed(..)
       , TypeInformation(..)
+      , Hash(..)
       , typed
       , TypeFormat(..)
       , typecheck
@@ -19,7 +20,7 @@ module Data.Binary.Typed.Internal (
       , TypeRep(..)
       , stripTypeRep
       , unStripTypeRep
-      , typeHash
+      , hashType
 
       -- * 'TyCon'
       , TyCon(..)
@@ -30,6 +31,8 @@ module Data.Binary.Typed.Internal (
 
 
 import           GHC.Generics
+import           Data.Monoid
+import           Control.Applicative
 import           Numeric (showHex)
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
@@ -49,12 +52,27 @@ import           Data.Byteable (toBytes)
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
 data TypeInformation = NoType
-                     | HashedType BS.ByteString
-                     | ShownType  BS.ByteString String
+                     | HashedType Hash
+                     | ShownType  Hash String
                      | FullType   TypeRep
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
+
+data Hash = Hash Word64 Word64
+      deriving (Eq, Ord)
+
+instance Show Hash where
+      show (Hash a b) = let a' = showHex a ""
+                            b' = showHex b ""
+                            pad n xs = take n (xs ++ repeat '0')
+                        in  pad 16 a' ++ pad 16 b'
+
+-- Handwritten instance because the derived one (presumably) wastes one byte
+-- to transmit the one possible data constructor
+instance Binary Hash where
+      put (Hash a b) = put a >> put b
+      get = liftA2 Hash get get
 
 
 
@@ -93,7 +111,7 @@ data TypeFormat =
         --     tag the data as untyped).
         Untyped
 
-        -- | Compare types by their hash values, currently an 'MD5'
+        -- | Compare types by their hash values, currently an 'MD5'-based
         --   representation of the 'Ty.TypeRep'.
         --
         --   * Requires only a handful of bytes per serialization.
@@ -133,8 +151,8 @@ typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
             Untyped -> NoType
-            Hashed  -> HashedType (typeHash     ty)
-            Shown   -> ShownType  (typeHash     ty) (show ty)
+            Hashed  -> HashedType (hashType     ty)
+            Shown   -> ShownType  (hashType     ty) (show ty)
             Full    -> FullType   (stripTypeRep ty)
 
 
@@ -164,26 +182,26 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
       where
 
       expectedType = typeOf x
-      expectedHash = typeHash     expectedType
+      expectedHash = hashType     expectedType
       expectedShow = show         expectedType
       expectedFull = stripTypeRep expectedType
 
       hashErrorMsg hash = unwords [ "Type error: expected type"
                                   , expectedShow
                                   , "with hash"
-                                  , showBSHex expectedHash ++ ","
+                                  , show expectedHash ++ ","
                                   , "but received data with hash"
-                                  , showBSHex hash
+                                  , show hash
                                   ]
       shownErrorMsg hash str = unwords
                                   [ "Type error: expected type"
                                   , expectedShow
                                   , "with hash"
-                                  , showBSHex expectedHash ++ ","
+                                  , show expectedHash ++ ","
                                   , "but received data with type"
                                   , str
                                   , "and hash"
-                                  , showBSHex hash
+                                  , show hash
                                   ]
       fullErrorMsg full = unwords [ "Type error: expected type"
                                   , expectedShow ++ ","
@@ -191,20 +209,27 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
                                   , show full
                                   ]
 
--- | Show a 'BS.ByteString' in lower-case hex format (e.g. @1234abc567@).
-showBSHex :: BS.ByteString -> String
-showBSHex = concatMap (\x -> showHex x "") . BS.unpack
-
 
 
 -- | Hash a 'Ty.TypeRep'.
-typeHash :: Ty.TypeRep -> BS.ByteString
-typeHash = md5 . show where
+hashType :: Ty.TypeRep -> Hash
+hashType = md5 . show where
 
-      md5 = toBytes . hash . encode
+      md5 = toHash . BSL.fromStrict . toBytes . hash . encode
 
       hash :: BSL.ByteString -> Crypto.Digest Crypto.MD5
       hash = Crypto.hashlazy
+
+      -- Convert a ByteString to a Hash value by decoding two blocks of
+      -- 8 bytes each. The padding is done in case the input is malformed,
+      -- making this function total.
+      toHash bs = let (a, b) = BSL.splitAt 8 bs
+                      hash1 = decode (pad 8 a)
+                      hash2 = decode (pad 8 b)
+                  in  Hash hash1 hash2
+
+      -- Pad a lazy bytestring with zeros until it has a certain length.
+      pad n bs = bs <> BSL.replicate (n - BSL.length bs) 0
 
 
 
