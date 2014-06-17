@@ -48,7 +48,8 @@ import           Data.Byteable (toBytes)
 -- ^ Type information stored alongside a value to be serialized, so that the
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
-data TypeInformation = HashedType      BS.ByteString
+data TypeInformation = NoType
+                     | HashedType      BS.ByteString
                      | ShownType       String
                      | HashedShownType BS.ByteString String
                      | FullType        TypeRep
@@ -67,7 +68,8 @@ data Typed a = Typed TypeInformation a
 
 instance Show a => Show (Typed a) where
       show (Typed ty x) = "typed " ++ show format  ++ " (" ++ show x ++ ")"
-            where format = case ty of HashedType       {} -> Hashed
+            where format = case ty of NoType           {} -> Untyped
+                                      HashedType       {} -> Hashed
                                       ShownType        {} -> Shown
                                       HashedShownType  {} -> HashedShown
                                       FullType         {} -> Full
@@ -87,6 +89,12 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 --   messages.
 data TypeFormat =
 
+        -- | Include no type information.
+        --
+        --   * Requires one byte more than using 'Binary' directly (namely to
+        --     tag the data as untyped).
+        Untyped
+
         -- | Compare types by their hash values, currently a 'MD5'
         --   representation of the 'Ty.TypeRep'.
         --
@@ -95,7 +103,7 @@ data TypeFormat =
         --     practice this should almost never happen.
         --   * Type errors cannot tell the expected type ("Expected X, received
         --     type with hash H")
-        Hashed
+      | Hashed
 
         -- | Compare 'String' representation of types, obtained by calling
         --   'show' on the 'Ty.TypeRep'.
@@ -130,6 +138,7 @@ typed :: Typeable a => TypeFormat -> a -> Typed a
 typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
+            Untyped     -> NoType
             Hashed      -> HashedType       (typeHash     ty)
             Shown       -> ShownType        (show         ty)
             HashedShown -> HashedShownType  (typeHash     ty) (show ty)
