@@ -49,10 +49,9 @@ import           Data.Byteable (toBytes)
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
 data TypeInformation = NoType
-                     | HashedType      BS.ByteString
-                     | ShownType       String
-                     | HashedShownType BS.ByteString String
-                     | FullType        TypeRep
+                     | HashedType BS.ByteString
+                     | ShownType  BS.ByteString String
+                     | FullType   TypeRep
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
@@ -71,7 +70,6 @@ instance Show a => Show (Typed a) where
             where format = case ty of NoType           {} -> Untyped
                                       HashedType       {} -> Hashed
                                       ShownType        {} -> Shown
-                                      HashedShownType  {} -> HashedShown
                                       FullType         {} -> Full
 
 -- | Ensures data is decoded as the appropriate type with high or total
@@ -95,7 +93,7 @@ data TypeFormat =
         --     tag the data as untyped).
         Untyped
 
-        -- | Compare types by their hash values, currently a 'MD5'
+        -- | Compare types by their hash values, currently an 'MD5'
         --   representation of the 'Ty.TypeRep'.
         --
         --   * Requires only a handful of bytes per serialization.
@@ -106,21 +104,17 @@ data TypeFormat =
       | Hashed
 
         -- | Compare 'String' representation of types, obtained by calling
-        --   'show' on the 'Ty.TypeRep'.
+        --   'show' on the 'Ty.TypeRep', and also include a hash value
+        --   (like 'Hashed'). The former is mostly for readable error messages,
+        --   the latter provides collision resistance.
         --
-        --   * Data size usually between 'Hashed' and 'Full'.
-        --   * All types are unqualified, @Foo.X@ and @Bar.X@ look identical,
-        --     thus type collisions (false positives) can happen.
-        --   * Useful type errors ("expected X, received Y").
+        --   * Data size larger than 'Hashed', but usually smaller than 'Full'.
+        --   * Both the hash and the shown type must match to satisfy the
+        --     typechecker.
+        --   * Useful type errors ("expected X, received Y"). All types are
+        --     unqualified though, making @Foo.X@ and @Bar.X@ look identical in
+        --     error messages.
       | Shown
-
-        -- | Combination of 'Hashed' and 'Shown'.
-        --
-        --   * A few bytes larger than 'Shown' alone, due to the hash.
-        --   * Much more collision-resistant than its constituents, since both
-        --     the hash and the text representation have to match.
-        --   * Useful type errors (like 'Shown').
-      | HashedShown
 
         -- | Compare the full representation of a data type.
         --
@@ -138,11 +132,10 @@ typed :: Typeable a => TypeFormat -> a -> Typed a
 typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
-            Untyped     -> NoType
-            Hashed      -> HashedType       (typeHash     ty)
-            Shown       -> ShownType        (show         ty)
-            HashedShown -> HashedShownType  (typeHash     ty) (show ty)
-            Full        -> FullType         (stripTypeRep ty)
+            Untyped -> NoType
+            Hashed  -> HashedType (typeHash     ty)
+            Shown   -> ShownType  (typeHash     ty) (show ty)
+            Full    -> FullType   (stripTypeRep ty)
 
 
 
@@ -161,11 +154,10 @@ erase (Typed _ty value) = value
 --   message otherwise.
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
-      HashedType hash | expectedHash /= hash -> Left (hashErrorMsg hash)
-      ShownType str   | expectedShow /= str  -> Left (shownErrorMsg str)
-      FullType full   | expectedFull /= full -> Left (fullErrorMsg full)
-      HashedShownType hash str | (expectedHash, expectedShow) /= (hash, str)
-                                             -> Left (hashedShownErrorMsg hash str)
+      HashedType hash    | expectedHash /= hash -> Left (hashErrorMsg hash)
+      FullType full      | expectedFull /= full -> Left (fullErrorMsg full)
+      ShownType hash str | (expectedHash, expectedShow) /= (hash, str)
+                                                -> Left (shownErrorMsg hash str)
       _no_type_error -> Right ty
 
 
@@ -183,12 +175,7 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
                                   , "but received data with hash"
                                   , showBSHex hash
                                   ]
-      shownErrorMsg str = unwords [ "Type error: expected type"
-                                  , expectedShow ++ ","
-                                  , "but received data with type"
-                                  , str
-                                  ]
-      hashedShownErrorMsg hash str = unwords
+      shownErrorMsg hash str = unwords
                                   [ "Type error: expected type"
                                   , expectedShow
                                   , "with hash"

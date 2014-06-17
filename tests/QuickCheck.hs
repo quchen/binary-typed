@@ -39,7 +39,6 @@ prop_inverses_int = tree tests where
       tests = [ testProperty "Untyped"      (prop Untyped)
               , testProperty "Hashed"       (prop Hashed)
               , testProperty "Shown"        (prop Shown)
-              , testProperty "Hashed+Shown" (prop HashedShown)
               , testProperty "Full"         (prop Full)
               ]
 
@@ -58,7 +57,6 @@ prop_inverses_string = tree tests where
       tests = [ testProperty "Untyped"      (prop Untyped)
               , testProperty "Hashed"       (prop Hashed)
               , testProperty "Shown"        (prop Shown)
-              , testProperty "Hashed+Shown" (prop HashedShown)
               , testProperty "Full"         (prop Full)
               ]
 
