@@ -27,7 +27,8 @@ instance Binary X where
 props :: TestTree
 props = tree tests where
       tree = testGroup "HUnit"
-      tests = [ error_coercions_simple
+      tests = [ error_coercions_simple_large_to_small
+              , error_coercions_simple_small_to_large
               , error_coercions_complicated
               ]
 
@@ -36,7 +37,7 @@ props = tree tests where
 
 
 -- #############################################################################
--- ###  Simple bad type coercion  ##############################################
+-- ###  Simple bad type coercions  #############################################
 -- #############################################################################
 
 
@@ -50,9 +51,11 @@ wackyCoercion format value = decodeTyped (encodeTyped format value)
 
 
 
--- | Test whether encoding an Int and decoding it as Bool produces a type error
-error_coercions_simple :: TestTree
-error_coercions_simple = tree tests where
+-- | Test whether encoding an Int and decoding it as Bool produces a type error.
+--   This converts a large field (Int) to one that requires only very little
+--   memory (Bool).
+error_coercions_simple_large_to_small :: TestTree
+error_coercions_simple_large_to_small = tree tests where
       tree = testGroup "Encode Int, decode Bool => Type error"
       tests = [ error_int_bool_hashed
               , error_int_bool_shown
@@ -60,7 +63,7 @@ error_coercions_simple = tree tests where
               , error_int_bool_full
               ]
 
--- | See 'error_coercions_simple'
+-- | See 'error_coercions_simple_large_to_small'
 error_int_bool_hashed :: TestTree
 error_int_bool_hashed =
       testCase "Hashed" $
@@ -69,7 +72,7 @@ error_int_bool_hashed =
       @?
       "No type error when coercing Int to Bool (with hashed type info)"
 
--- | See 'error_coercions_simple'
+-- | See 'error_coercions_simple_large_to_small'
 error_int_bool_shown :: TestTree
 error_int_bool_shown =
       testCase "Shown" $
@@ -78,7 +81,7 @@ error_int_bool_shown =
       @?
       "No type error when coercing Int to Bool (with shown type info)"
 
--- | See 'error_coercions_simple'
+-- | See 'error_coercions_simple_large_to_small'
 error_int_bool_hashedshown :: TestTree
 error_int_bool_hashedshown =
       testCase "Hashed+Shown" $
@@ -87,7 +90,7 @@ error_int_bool_hashedshown =
       @?
       "No type error when coercing Int to Bool (with hashed+shown type info)"
 
--- | See 'error_coercions_simple'
+-- | See 'error_coercions_simple_large_to_small'
 error_int_bool_full :: TestTree
 error_int_bool_full =
       testCase "Full" $
@@ -95,6 +98,57 @@ error_int_bool_full =
       isLeft (wackyCoercion Full (123 :: Int) :: Either String Bool)
       @?
       "No type error when coercing Int to Bool (with full type info)"
+
+
+
+
+-- | Test whether encoding an Int and decoding it as Bool produces a type error.
+--   This converts a large field (Int) to one that requires only very little
+--   memory (Bool).
+error_coercions_simple_small_to_large :: TestTree
+error_coercions_simple_small_to_large = tree tests where
+      tree = testGroup "Encode Bool, decode Int => Type error"
+      tests = [ error_bool_int_hashed
+              , error_bool_int_shown
+              , error_bool_int_hashedshown
+              , error_bool_int_full
+              ]
+
+-- | See 'error_coercions_simple_small_to_large'
+error_bool_int_hashed :: TestTree
+error_bool_int_hashed =
+      testCase "Hashed" $
+
+      isLeft (wackyCoercion Hashed True :: Either String Int)
+      @?
+      "No type error when coercing Bool to Int (with hashed type info)"
+
+-- | See 'error_coercions_simple_small_to_large'
+error_bool_int_shown :: TestTree
+error_bool_int_shown =
+      testCase "Shown" $
+
+      isLeft (wackyCoercion Shown True :: Either String Int)
+      @?
+      "No type error when coercing Bool to Int (with shown type info)"
+
+-- | See 'error_coercions_simple_small_to_large'
+error_bool_int_hashedshown :: TestTree
+error_bool_int_hashedshown =
+      testCase "Hashed+Shown" $
+
+      isLeft (wackyCoercion HashedShown True :: Either String Int)
+      @?
+      "No type error when coercing Bool to Int (with hashed+shown type info)"
+
+-- | See 'error_coercions_simple_small_to_large'
+error_bool_int_full :: TestTree
+error_bool_int_full =
+      testCase "Full" $
+
+      isLeft (wackyCoercion Full True :: Either String Int)
+      @?
+      "No type error when coercing Bool to Int (with full type info)"
 
 
 
