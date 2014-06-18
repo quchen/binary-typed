@@ -25,6 +25,7 @@ module Data.Binary.Typed (
       , decodeTyped
       , decodeTypedOrFail
       , unsafeDecodeTyped
+
 ) where
 
 
@@ -66,10 +67,10 @@ encodeTyped format value = encode (typed format value)
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
 --
 -- -- \<value\>
--- unsafeDecodeTyped encoded (String, Int, Double)
+-- 'unsafeDecodeTyped' encoded ('String', 'Int', 'Double')
 --
 -- -- (Descriptive) runtime error
--- unsafeDecodeTyped encoded (Char, Int, Double)
+-- 'unsafeDecodeTyped' encoded ('Char', 'Int', 'Double')
 -- @
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString

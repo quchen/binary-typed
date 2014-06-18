@@ -81,15 +81,15 @@ instance Binary Hash where
 --   information.
 data Typed a = Typed TypeInformation a
       -- ^ Using this data constructor directly is unsafe, as it allows
-      -- construction of ill-typed 'Typed'data. Use the 'typed' smart
+      -- construction of ill-typed 'Typed' data. Use the 'typed' smart
       -- constructor unless you really need 'Typed'.
 
 instance Show a => Show (Typed a) where
       show (Typed ty x) = "typed " ++ show format  ++ " (" ++ show x ++ ")"
-            where format = case ty of NoType           {} -> Untyped
-                                      HashedType       {} -> Hashed
-                                      ShownType        {} -> Shown
-                                      FullType         {} -> Full
+            where format = case ty of NoType     {} -> Untyped
+                                      HashedType {} -> Hashed
+                                      ShownType  {} -> Shown
+                                      FullType   {} -> Full
 
 -- | Ensures data is decoded as the appropriate type with high or total
 --   confidence (depending on with what 'TypeFormat' the 'Typed' was
