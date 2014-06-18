@@ -53,3 +53,13 @@ test-suite tasty
                          , tasty            >= 0.8
                          , tasty-hunit      >= 0.8
                          , tasty-quickcheck >= 0.8
+
+benchmark criterion
+      type:                exitcode-stdio-1.0
+      hs-source-dirs:      benchmark
+      main-is:             Criterion.hs
+      build-depends:       base
+                         , binary
+                         , binary-typed
+                         , criterion
+      ghc-options:         -Wall
