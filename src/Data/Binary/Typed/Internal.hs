@@ -32,8 +32,8 @@ module Data.Binary.Typed.Internal (
 
 
 import           GHC.Generics
+import           Control.Monad
 import           Data.Monoid
-import           Control.Applicative
 import           Numeric (showHex)
 -- import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
@@ -42,6 +42,8 @@ import           Data.Typeable (Typeable, typeOf)
 import qualified Data.Typeable as Ty
 
 import           Data.Binary
+import           Data.Binary.Get (getLazyByteString)
+import           Data.Binary.Put (putLazyByteString)
 
 -- Crypto stuff for hashing
 import qualified Crypto.Hash as Crypto
@@ -71,21 +73,18 @@ getFormat (FullType   {}) = Full
 
 
 
--- | A hash value of a 'TypeRep'.
-data Hash = Hash Word64 Word64
+-- | A hash value of a 'TypeRep'. Currently a 32-bit 'BSL.ByteString'.
+data Hash = Hash BSL.ByteString
       deriving (Eq, Ord)
 
 instance Show Hash where
-      show (Hash a b) = let a' = showHex a ""
-                            b' = showHex b ""
-                            pad n xs = take n (xs ++ repeat '0')
-                        in  pad 16 a' ++ pad 16 b'
+      show (Hash hash) = (BSL.foldr (\x xs -> showHex x . xs) id hash) ""
 
--- Handwritten instance because the derived one (presumably) wastes one byte
--- to transmit the one possible data constructor
+-- Manual instance of a fixed-size ByteString type (avoids sending the length)
 instance Binary Hash where
-      put (Hash a b) = put a >> put b
-      get = liftA2 Hash get get
+      put (Hash hash) = putLazyByteString hash >> replicateM_ pad (putWord8 0)
+            where pad = fromIntegral (32 - BSL.length hash)
+      get = fmap Hash (getLazyByteString 32)
 
 
 
@@ -248,23 +247,22 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
 
 -- | Hash a 'Ty.TypeRep'.
 hashType :: Ty.TypeRep -> Hash
-hashType = md5 . show where
+hashType = Hash
+         . pad 32 -- Length of the hash
+         . BSL.fromStrict
+         . toBytes
+         . hash
+         . encode
+         . stripTypeRep
 
-      md5 = toHash . BSL.fromStrict . toBytes . hash . encode
+      where
 
       hash :: BSL.ByteString -> Crypto.Digest Crypto.MD5
       hash = Crypto.hashlazy
 
-      -- Convert a ByteString to a Hash value by decoding two blocks of
-      -- 8 bytes each. The padding is done in case the input is malformed,
-      -- making this function total.
-      toHash bs = let (bsA,   bsB)   = BSL.splitAt 8 bs
-                      (bsA',  bsB')  = (pad 8 bsA, pad 8 bsB)
-                      (hashA, hashB) = (decode bsA', decode bsB')
-                  in  Hash hashA hashB
-
-      -- Pad a lazy bytestring with zeros until it has a certain length.
-      pad n bs = bs <> BSL.replicate (n - BSL.length bs) 0
+      -- Pad a ByteString to a certain length by *prepending* zeros or
+      -- shrink it by truncating.
+      pad l bs = BSL.take l (BSL.replicate (l - BSL.length bs) 0 <> bs)
 
 
 
