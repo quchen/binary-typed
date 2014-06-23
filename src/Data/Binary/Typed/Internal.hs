@@ -13,6 +13,7 @@ module Data.Binary.Typed.Internal (
       , Hash(..)
       , typed
       , TypeFormat(..)
+      , getFormat
       , typecheck
       , erase
 
@@ -58,6 +59,17 @@ data TypeInformation = NoType
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
+
+
+
+-- | Extract which 'TypeFormat' was used to create a certain 'TypeInformation'.
+getFormat :: TypeInformation -> TypeFormat
+getFormat (NoType     {}) = Untyped
+getFormat (HashedType {}) = Hashed
+getFormat (ShownType  {}) = Shown
+getFormat (FullType   {}) = Full
+
+
 
 -- | A hash value of a 'TypeRep'.
 data Hash = Hash Word64 Word64

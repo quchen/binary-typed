@@ -14,13 +14,22 @@ module Data.Binary.Typed (
 
 
 
-      -- * Construction, deconstruction
+      -- * Core functions
         Typed
       , typed
       , TypeFormat(..)
       , erase
 
-      -- * Convenience API functions
+
+
+      -- * Useful API functions
+
+      -- ** General helpers
+      , mapTyped
+      , reValue
+      , reType
+
+      -- ** Typed serialization
       , encodeTyped
       , decodeTyped
       , decodeTypedOrFail
@@ -41,16 +50,41 @@ import           Data.Binary.Typed.Internal
 
 
 
+
+-- | Modify the value contained in a 'Typed', keeping the same sort of type
+--   representation. In other words, calling 'mapTyped' on something that is
+--   typed using 'Hashed' will yield a 'Hashed' value again.
+mapTyped :: Typeable b => (a -> b) -> Typed a -> Typed b
+mapTyped f (Typed ty x) = typed (getFormat ty) (f x)
+
+
+
+-- | Change the value contained in a 'Typed', leaving the type representation
+--   unchanged. This can be useful to avoid recomputation of the included type
+--   information.
+--
+--   Can be seen as a more efficient 'mapTyped' in case @f@ is an endomorphism
+--   (i.e. has type @a -> a@).
+reValue :: (a -> a) -> Typed a -> Typed a
+reValue f (Typed ty x) = Typed ty (f x)
+
+
+
+-- | Change the way a type is represented inside a 'Typed' value.
+--
+-- @
+-- 'reType' format x = 'typed' format ('erase' x)
+-- @
+reType :: Typeable a => TypeFormat -> Typed a -> Typed a
+reType format (Typed _ty x) = typed format x
+
+
+
 -- | Encode a 'Typeable' value to 'BSL.ByteString' that includes type
 -- information.
 --
--- This is just a convenient wrapper to calling 'encode' on data created with
--- 'typed' manually,
---
 -- @
--- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
--- -- is identical to
--- encoded = 'encode' ('typed' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double'))
+-- 'encodeTyped' format value = 'encode' ('typed' format value)
 -- @
 encodeTyped :: (Typeable a, Binary a)
             => TypeFormat
