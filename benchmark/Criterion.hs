@@ -7,14 +7,14 @@ import Data.Typeable
 
 main :: IO ()
 main = defaultMain
-      [ bgroup "Binary vs. typed binary" bench_binaryVsTyped
+      [ bgroup "Encode" bench_binaryVsTyped
       ]
 
 bench_binaryVsTyped :: [Benchmark]
 bench_binaryVsTyped =
-      [ bgroup "Int"                      (map (bench_encode (12345 :: Int)    ) formats)
-      , bgroup "String: \"hello\""        (map (bench_encode  "hello"          ) formats)
-      , bgroup "String: take 100 ['a'..]" (map (bench_encode (take 100 ['a'..])) formats)
+      [ bgroup "Int"               (map (bench_encode (12345 :: Int)    )  formats)
+      , bgroup "\"hello\""         (map (bench_encode  "hello"          )  formats)
+      , bgroup "take 1000 ['a'..]" (map (bench_encode (take 1000 ['a'..])) formats)
       ]
 
 formats :: [Maybe TypeFormat]
