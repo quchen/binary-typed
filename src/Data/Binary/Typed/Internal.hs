@@ -2,7 +2,7 @@
 
 
 
--- | Internals, exposed mostly for potential use by the testsuites.
+-- | Internals, exposed mostly for potential use by testsuites and benchmarks.
 --
 -- __Not recommended to be used from within other independent libraries.__
 module Data.Binary.Typed.Internal (
@@ -32,9 +32,9 @@ module Data.Binary.Typed.Internal (
 
 
 import           GHC.Generics
+import           Text.Printf
 import           Control.Monad
 import           Data.Monoid
-import           Numeric (showHex)
 -- import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -54,10 +54,10 @@ import           Data.Byteable (toBytes)
 -- ^ Type information stored alongside a value to be serialized, so that the
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
-data TypeInformation = NoType
-                     | HashedType Hash
-                     | ShownType  Hash String
-                     | FullType   TypeRep
+data TypeInformation = Untyped'
+                     | Hashed'  Hash
+                     | Shown'   Hash String
+                     | Full'    TypeRep
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
@@ -66,10 +66,10 @@ instance Binary TypeInformation
 
 -- | Extract which 'TypeFormat' was used to create a certain 'TypeInformation'.
 getFormat :: TypeInformation -> TypeFormat
-getFormat (NoType     {}) = Untyped
-getFormat (HashedType {}) = Hashed
-getFormat (ShownType  {}) = Shown
-getFormat (FullType   {}) = Full
+getFormat (Untyped' {}) = Untyped
+getFormat (Hashed'  {}) = Hashed
+getFormat (Shown'   {}) = Shown
+getFormat (Full'    {}) = Full
 
 
 
@@ -78,7 +78,8 @@ data Hash = Hash BSL.ByteString
       deriving (Eq, Ord)
 
 instance Show Hash where
-      show (Hash hash) = (BSL.foldr (\x xs -> showHex x . xs) id hash) ""
+      show (Hash hash) = (BSL.foldr (\x xs -> hex x . xs) id hash) ""
+            where hex x = (printf "%02x" x ++) -- ad-hoc DList
 
 -- Manual instance of a fixed-size ByteString type (avoids sending the length)
 instance Binary Hash where
@@ -95,12 +96,11 @@ data Typed a = Typed TypeInformation a
       -- construction of ill-typed 'Typed' data. Use the 'typed' smart
       -- constructor unless you really need 'Typed'.
 
+-- | "typed \<format\> \<value\>"
 instance Show a => Show (Typed a) where
-      show (Typed ty x) = "typed " ++ show format  ++ " (" ++ show x ++ ")"
-            where format = case ty of NoType     {} -> Untyped
-                                      HashedType {} -> Hashed
-                                      ShownType  {} -> Shown
-                                      FullType   {} -> Full
+      show (Typed ty x) = printf "typed %s (%s)"
+                                 (show (getFormat ty))
+                                 (show x)
 
 -- | Ensures data is decoded as the appropriate type with high or total
 --   confidence (depending on with what 'TypeFormat' the 'Typed' was
@@ -120,7 +120,7 @@ data TypeFormat =
         -- | Include no type information.
         --
         --   * Requires one byte more than using 'Binary' directly (namely to
-        --     tag the data as untyped).
+        --     tag the data as untyped, required for the decoding step).
         Untyped
 
         -- | Compare types by their hash values, currently an 'MD5'-based
@@ -178,10 +178,10 @@ typed :: Typeable a => TypeFormat -> a -> Typed a
 typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
-            Untyped -> NoType
-            Hashed  -> HashedType (hashType     ty)
-            Shown   -> ShownType  (hashType     ty) (show ty)
-            Full    -> FullType   (stripTypeRep ty)
+            Untyped -> Untyped'
+            Hashed  -> Hashed'  (hashType     ty)
+            Shown   -> Shown'   (hashType     ty) (show ty)
+            Full    -> Full'    (stripTypeRep ty)
 
 
 
@@ -200,15 +200,14 @@ erase (Typed _ty value) = value
 
 
 
--- | Typecheck a 'Typed'. Returns the input if the types work out, and an error
---   message otherwise.
-
+-- | Typecheck a 'Typed'. Returns the (well-typed) input, or an error message
+--   if the types don't work out.
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
-      HashedType hash    | exHash /= hash -> Left (hashErrorMsg hash)
-      FullType full      | exFull /= full -> Left (fullErrorMsg full)
-      ShownType hash str | (exHash, exShow) /= (hash, str)
-                                          -> Left (shownErrorMsg hash str)
+      Full'   full     | exFull /= full -> Left (fullError full)
+      Hashed' hash     | exHash /= hash -> Left (hashError hash)
+      Shown'  hash str | (exHash, exShow) /= (hash, str)
+                                        -> Left (shownError hash str)
       _no_type_error -> Right ty
 
 
@@ -220,28 +219,15 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
       exShow = show         exType
       exFull = stripTypeRep exType
 
-      hashErrorMsg hash = unwords [ "Type error: expected type"
-                                  , exShow
-                                  , "with hash"
-                                  , show exHash ++ ","
-                                  , "but received data with hash"
-                                  , show hash
-                                  ]
-      shownErrorMsg hash str = unwords
-                                  [ "Type error: expected type"
-                                  , exShow
-                                  , "with hash"
-                                  , show exHash ++ ","
-                                  , "but received data with type"
-                                  , str
-                                  , "and hash"
-                                  , show hash
-                                  ]
-      fullErrorMsg full = unwords [ "Type error: expected type"
-                                  , exShow ++ ","
-                                  , "but received data with type"
-                                  , show full
-                                  ]
+      hashError hash = printf pat exShow (show exHash) (show hash)
+            where pat = "Type error: expected type %s with hash %s,\
+                        \ but received data with hash %s"
+      shownError hash str = printf pat exShow (show exHash) str (show hash)
+            where pat = "Type error: expected type %s and hash %s,\
+                        \ but received data with type %s and hash %s"
+      fullError full = printf pat exShow (show full)
+            where pat = "Type error: expected type %s,\
+                        \ but received data with type %s"
 
 
 
