@@ -63,4 +63,5 @@ benchmark criterion
                          , binary
                          , binary-typed
                          , criterion
+                         , deepseq
       ghc-options:         -Wall
