@@ -61,7 +61,8 @@ mapTyped f (Typed ty x) = typed (getFormat ty) (f x)
 
 -- | Change the value contained in a 'Typed', leaving the type representation
 --   unchanged. This can be useful to avoid recomputation of the included type
---   information.
+--   information, and can improve performance significantly if many individual
+--   messages are serialized.
 --
 --   Can be seen as a more efficient 'mapTyped' in case @f@ is an endomorphism
 --   (i.e. has type @a -> a@).
