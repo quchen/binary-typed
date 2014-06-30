@@ -48,10 +48,14 @@ prop_inverses_int = tree tests where
               , testProperty "Hashed"  (prop Hashed)
               , testProperty "Shown"   (prop Shown)
               , testProperty "Full"    (prop Full)
+              , testProperty "Cached"   prop_cached
               ]
 
       prop :: TypeFormat -> Int -> Bool
       prop format i = unsafeDecodeTyped (encodeTyped format i) == i
+
+      prop_cached :: Typed Int -> Int -> Bool
+      prop_cached dummy i = unsafeDecodeTyped (encodeTypedLike dummy i) == i
 
 
 
@@ -67,10 +71,14 @@ prop_inverses_string = tree tests where
               , testProperty "Hashed"  (prop Hashed)
               , testProperty "Shown"   (prop Shown)
               , testProperty "Full"    (prop Full)
+              , testProperty "Cached"   prop_cached
               ]
 
       prop :: TypeFormat -> String -> Bool
       prop format i = unsafeDecodeTyped (encodeTyped format i) == i
+
+      prop_cached :: Typed String -> String -> Bool
+      prop_cached dummy i = unsafeDecodeTyped (encodeTypedLike dummy i) == i
 
 
 
