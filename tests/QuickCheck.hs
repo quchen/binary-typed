@@ -4,7 +4,9 @@ module QuickCheck (props) where
 
 
 import Control.Applicative
+import Data.Typeable (Typeable)
 
+import Data.Binary
 import Data.Binary.Typed
 import Data.Binary.Typed.Internal
 
@@ -19,6 +21,7 @@ props = tree tests where
       tree = testGroup "QuickCheck"
       tests = [ prop_typerep
               , prop_inverses
+              , prop_api
               ]
 
 
@@ -104,3 +107,42 @@ instance Arbitrary TypeRep where
 -- | Modify the size parameter of a 'Gen'.
 modifySize :: (Int -> Int) -> Gen a -> Gen a
 modifySize f gen = sized (\n -> resize (f n) gen)
+
+
+
+-- | Check whether the laws mentioned in the docs hold
+prop_api :: TestTree
+prop_api = tree tests where
+
+      tree = testGroup "API"
+
+      tests = [ testProperty "erase"           prop_erase
+              , testProperty "reType"          prop_reType
+              , testProperty "encodeTyped"     prop_encodeTyped
+              , testProperty "encodeTypedLike" prop_encodeTypedLike
+              ]
+
+      prop_erase :: TypeFormat -> Int -> Bool
+      prop_erase format x = erase (typed format x) == x
+
+      prop_reType :: TypeFormat -> Typed Int -> Bool
+      prop_reType format x =
+            let (Typed tyA a) = reType format x
+                (Typed tyB b) = typed format (erase x)
+            in  (tyA, a) == (tyB, b)
+
+      prop_encodeTyped :: TypeFormat -> Int -> Bool
+      prop_encodeTyped format value =
+            encodeTyped format value == encode (typed format value)
+
+      prop_encodeTypedLike :: Typed Int -> Int -> Bool
+      prop_encodeTypedLike ty value =
+            encodeTypedLike ty value == encode (reValue (const value) ty)
+
+
+
+instance (Arbitrary a, Typeable a) => Arbitrary (Typed a) where
+      arbitrary = typed <$> arbitrary <*> arbitrary
+
+instance Arbitrary TypeFormat where
+      arbitrary = elements [Untyped, Hashed, Shown, Full]

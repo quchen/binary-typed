@@ -20,17 +20,16 @@ module Data.Binary.Typed (
       , TypeFormat(..)
       , erase
 
-
-
-      -- * Useful API functions
-
-      -- ** General helpers
+      -- * Useful general helpers
       , mapTyped
       , reValue
       , reType
 
-      -- ** Typed serialization
+
+      -- * Typed serialization
+
       , encodeTyped
+      , encodeTypedLike
       , decodeTyped
       , decodeTypedOrFail
       , unsafeDecodeTyped
@@ -92,6 +91,34 @@ encodeTyped :: (Typeable a, Binary a)
             -> a
             -> BSL.ByteString
 encodeTyped format value = encode (typed format value)
+
+
+
+-- | More efficient version of 'encodeTyped' that avoids recomputing the type
+-- representation of the input by using the one already contained in the first
+-- parameter. Note that the type's 'BSL.ByteString' representation is /not/
+-- cached, i.e. its serialization is still recalculated every time.
+--
+-- @
+-- 'encodeTypedLike' ty x = 'encode' ('reValue' ('const' x) ty)
+-- @
+--
+-- To cache the input automatically, this function can be used to generate a new
+-- encoder,
+--
+-- @
+-- x = 'typed' 'Full' (0 :: 'Int')
+--
+-- 'encodeInt' = 'encodeTypedLike' x
+--
+-- manyInts = map 'encodeInt' [1..100]
+-- @
+encodeTypedLike
+      :: (Typeable a, Binary a)
+      => Typed a
+      -> a
+      -> BSL.ByteString
+encodeTypedLike (Typed ty _x) value = encode (Typed ty value)
 
 
 
