@@ -23,7 +23,10 @@ someShortString :: String
 someShortString = "Hello"
 
 someLongString :: String
-someLongString = take 1000 ['a'..]
+someLongString = take 100 ['a'..]
+
+someComplicated :: Complicated
+someComplicated = Right (Left "Hello")
 
 
 -- | Data with a normal form.
@@ -35,6 +38,7 @@ force' (NF x) = x `deepseq` ()
 
 
 
+type Complicated = Either (Char, Int) (Either String (Maybe Integer))
 
 
 
@@ -90,7 +94,7 @@ bench_binaryVsTyped =
                                                            strSValFull
                                                            someShortString)
             ]
-      , bgroup "take 1000 ['a'..]"
+      , bgroup "take 100 ['a'..]"
             [ bench_long_string_untyped
             , bgroup "recalculate" bench_long_string
             , bgroup "precache"    (bench_encode_precached strLValUntyped
@@ -98,6 +102,15 @@ bench_binaryVsTyped =
                                                            strLValShown
                                                            strLValFull
                                                            someLongString)
+            ]
+      , bgroup "Complicated type"
+            [ bench_complicated_untyped
+            , bgroup "recalculate" bench_complicated
+            , bgroup "precache"    (bench_encode_precached compLValUntyped
+                                                           compLValHashed
+                                                           compLValShown
+                                                           compLValFull
+                                                           someComplicated)
             ]
       ]
 
@@ -109,23 +122,32 @@ defaultInt = 0
 defaultString :: String
 defaultString = ""
 
+defaultComplicated :: Complicated
+defaultComplicated = Left (' ', 0)
+
 intValUntyped, intValHashed, intValShown, intValFull :: Typed Int
-intValUntyped = typed  Untyped defaultInt
-intValHashed  = typed  Hashed  defaultInt
-intValShown   = typed  Shown   defaultInt
-intValFull    = typed  Full    defaultInt
+intValUntyped = precache (typed  Untyped defaultInt)
+intValHashed  = precache (typed  Hashed  defaultInt)
+intValShown   = precache (typed  Shown   defaultInt)
+intValFull    = precache (typed  Full    defaultInt)
 
 strSValUntyped, strSValHashed, strSValShown, strSValFull :: Typed String
-strSValUntyped = typed Untyped defaultString
-strSValHashed  = typed Hashed  defaultString
-strSValShown   = typed Shown   defaultString
-strSValFull    = typed Full    defaultString
+strSValUntyped = precache (typed Untyped defaultString)
+strSValHashed  = precache (typed Hashed  defaultString)
+strSValShown   = precache (typed Shown   defaultString)
+strSValFull    = precache (typed Full    defaultString)
 
 strLValUntyped, strLValHashed, strLValShown, strLValFull :: Typed String
-strLValUntyped = typed Untyped defaultString
-strLValHashed  = typed Hashed  defaultString
-strLValShown   = typed Shown   defaultString
-strLValFull    = typed Full    defaultString
+strLValUntyped = precache (typed Untyped defaultString)
+strLValHashed  = precache (typed Hashed  defaultString)
+strLValShown   = precache (typed Shown   defaultString)
+strLValFull    = precache (typed Full    defaultString)
+
+compLValUntyped, compLValHashed, compLValShown, compLValFull :: Typed Complicated
+compLValUntyped = precache (typed Untyped defaultComplicated)
+compLValHashed  = precache (typed Hashed  defaultComplicated)
+compLValShown   = precache (typed Shown   defaultComplicated)
+compLValFull    = precache (typed Full    defaultComplicated)
 
 
 
@@ -147,6 +169,12 @@ bench_long_string = map (bench_encode someLongString) formats
 bench_long_string_untyped :: Benchmark
 bench_long_string_untyped = bench "Binary only" (nf encode someLongString)
 
+bench_complicated :: [Benchmark]
+bench_complicated = map (bench_encode someComplicated) formats
+
+bench_complicated_untyped :: Benchmark
+bench_complicated_untyped = bench "Binary only" (nf encode someComplicated)
+
 formats :: [TypeFormat]
 formats = [ Untyped
           , Hashed
@@ -154,8 +182,7 @@ formats = [ Untyped
           , Full
           ]
 
--- | Encdes using 'Binary' if the second argument is 'Nothing', otherwise using
---   'Typed' with the supplied 'TypeFormat'.
+-- | Simply encode a value using the specified 'TypeFormat'.
 bench_encode
       :: (Binary a, Typeable a)
       => a
@@ -166,6 +193,7 @@ bench_encode x format = bench description (nf (encodeTyped format) x)
 
 
 
+-- | Encode a value using a precached 'Typed' value.
 bench_encode_precached
       :: (Binary a, Typeable a)
       => Typed a -- ^ Precached 'Untyped' dummy value
@@ -175,9 +203,9 @@ bench_encode_precached
       -> a       -- ^ Actual value to encode
       -> [Benchmark]
 bench_encode_precached untyped hashed shown full x =
-      [ bench (description Untyped) (nf (encode . reValue (const x)) untyped)
-      , bench (description Hashed)  (nf (encode . reValue (const x)) hashed)
-      , bench (description Shown)   (nf (encode . reValue (const x)) shown)
-      , bench (description Full)    (nf (encode . reValue (const x)) full)
+      [ bench (description Untyped) (nf (encodeTypedLike untyped) x)
+      , bench (description Hashed)  (nf (encodeTypedLike hashed ) x)
+      , bench (description Shown)   (nf (encodeTypedLike shown  ) x)
+      , bench (description Full)    (nf (encodeTypedLike full   ) x)
       ]
       where description format = "Typed: " ++ show format
