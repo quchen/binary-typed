@@ -8,8 +8,11 @@ module Data.Binary.Typed (
       -- ** Motivation
       -- $motivation
 
-      -- ** Practical example
+      -- ** Usage
       -- $usage
+
+      -- ** Brief overview
+      -- $overview
 
 
 
@@ -20,6 +23,7 @@ module Data.Binary.Typed (
       , TypeFormat(..)
       , erase
 
+
       -- * Useful general helpers
       , mapTyped
       , reValue
@@ -29,8 +33,11 @@ module Data.Binary.Typed (
 
       -- * Typed serialization
 
+      -- ** Encoding
       , encodeTyped
       , encodeTypedLike
+
+      -- ** Decoding
       , decodeTyped
       , decodeTypedOrFail
       , unsafeDecodeTyped
@@ -54,6 +61,10 @@ import           Data.Binary.Typed.Internal
 -- | Modify the value contained in a 'Typed', keeping the same sort of type
 --   representation. In other words, calling 'mapTyped' on something that is
 --   typed using 'Hashed' will yield a 'Hashed' value again.
+--
+--   Note: this destroys 'precache'd information, so that values have to be
+--   'precache'd again if desired. As a consequence, @'mapTyped' 'id'@
+--   can be used to un-'precache' values.
 mapTyped :: Typeable b => (a -> b) -> Typed a -> Typed b
 mapTyped f (Typed ty x) = typed (getFormat ty) (f x)
 
@@ -82,7 +93,8 @@ reType format (Typed _ty x) = typed format x
 
 
 -- | Encode a 'Typeable' value to 'BSL.ByteString' that includes type
--- information.
+-- information. If at all possible, prefer the more efficient 'encodeTypedLike'
+-- though.
 --
 -- @
 -- 'encodeTyped' format value = 'encode' ('typed' format value)
@@ -95,34 +107,30 @@ encodeTyped format value = encode (typed format value)
 
 
 
--- | More efficient version of 'encodeTyped' that avoids recomputing the type
--- representation (and its serialized version) of the input by using the one
--- already contained in the first parameter. Uses 'precache' internally.
+-- | Version of 'encodeTyped' that avoids recomputing the type representation
+--   of the input by using the one already contained in the first parameter.
+--   This is usually /much/ more efficient than using 'encode', having a
+--   computational cost similar to using 'Binary' directly.
 --
 -- @
 -- 'encodeTypedLike' ty x
--- -- decodes observationally to
+-- -- is observationally identical to
 -- 'encode' ('reValue' ('const' x) ty)
 -- @
 --
--- To cache the input automatically, this function can be used to generate a new
--- encoder,
+-- This function is intended to generate new encoding functions like so:
 --
 -- @
--- x = 'typed' 'Full' (0 :: 'Int')
---
--- 'encodeInt' = 'encodeTypedLike' x
---
--- manyInts = map 'encodeInt' [1..100]
+-- encodeInt :: 'Int' -> 'Data.ByteString.Lazy.ByteString'
+-- encodeInt = 'encodeTypedLike' ('typed' 'Full' 0)
 -- @
 encodeTypedLike
       :: (Typeable a, Binary a)
       => Typed a
       -> a
       -> BSL.ByteString
-encodeTypedLike dummy =
-      let (Typed ty _) = precache dummy
-      in  encode . Typed ty
+encodeTypedLike dummy = let (Typed ty _) = precache dummy
+                        in  encode . Typed ty
 
 
 
@@ -133,10 +141,10 @@ encodeTypedLike dummy =
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
 --
 -- -- \<value\>
--- 'unsafeDecodeTyped' encoded ('String', 'Int', 'Double')
+-- 'unsafeDecodeTyped' encoded :: ('String', 'Int', 'Double')
 --
 -- -- (Descriptive) runtime error
--- 'unsafeDecodeTyped' encoded ('Char', 'Int', 'Double')
+-- 'unsafeDecodeTyped' encoded :: ('Char', 'Int', 'Double')
 -- @
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
@@ -193,7 +201,7 @@ decodeTyped bs = case decodeTypedOrFail bs of
 -- received data was sent assuming the right type, and error messages
 -- may provide insight into the type mismatch.
 --
--- Example without type safety:
+-- For example, this uses 'Data.Binary.Binary' directly:
 --
 -- @
 -- test1 = let val = 10 :: 'Int'
@@ -232,3 +240,48 @@ decodeTyped bs = case decodeTypedOrFail bs of
 --             dec = 'decodeTyped' enc :: 'Either' 'String' 'Bool'
 --         in  'print' dec
 -- @
+--
+-- However, using 'encodeTyped' is computationally inefficient when many
+-- messages of the same type are serialized, since it recomputes a serialized
+-- version of that type for every single serialized value from scratch.
+-- 'encodeTypedLike' exists to remedy that: it takes a separately constructed
+-- 'Typed' dummy value, and computes a new serialization function for that type
+-- out of it. This serialization function then re-uses the type representation
+-- of the dummy value, and simply replaces the contained value on each
+-- serialization so that no unnecessary overhead is introduced.
+--
+-- @
+-- -- Computes 'Int's type representation 100 times:
+-- manyIntsNaive = map 'encodeTyped' [1..100 :: 'Int']
+--
+-- -- Much more efficient: prepare dummy value to precache the
+-- -- type representation, computing it only once:
+-- 'encodeInt' = 'encodeTypedLike' ('typed' 'Full' (0 :: 'Int'))
+-- manyIntsCached = map 'encodeInt' [1..100]
+-- @
+
+-- $overview
+--
+-- The core definitions are:
+--
+--   * 'Typed' (the main type)
+--   * 'typed' (construct 'Typed' values)
+--   * 'TypeFormat' (a helper type for 'typed')
+--   * 'erase' (deconstruct 'Typed' vales)
+--
+-- In addition to those, a couple of useful helper functions with more efficient
+-- implementation than what the core definitions could offer:
+--
+--   * 'mapTyped' (change values contained in 'Typed's)
+--   * 'reValue' (change value, but don't recompute type representation)
+--   * 'reType' (change type representation, but keep value)
+--   * 'precache' (compute serialized type representation, useful as an optimization)
+--
+-- Lastly, there are a number of encoding/decoding functions, mostly for
+-- convenience:
+--
+--   * 'encodeTyped' (pack in 'Typed' and then 'encode')
+--   * 'encodeTypedLike' (usually much more efficient version of 'encodeTyped')
+--   * 'decodeTyped' (decode 'Typed' 'Data.ByteString.Lazy.ByteString' to @'Either' 'String' a@)
+--   * 'decodeTypedOrFail' (like 'decodeTyped', but with more meta information)
+--   * 'unsafeDecodeTyped' (which throws a runtime error on type mismatch)

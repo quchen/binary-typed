@@ -1,17 +1,22 @@
 name:          binary-typed
 version:       0.1.0.0
 synopsis:      Type-safe binary serialization
-Description:   Allows `Binary` serialization tagged with type information,
-               allowing for typechecking and useful error messages at
-               the receiving site.
-               .
-               This package serves the same purpose as tagged-binary,
-               with a couple of key differences:
-               .
-               * No depencency on @Internal@ modules of other libraries.
-               * Support of different kinds of serialized type
-                 annotations, each with specific strengths and weaknesses.
-               * Error messages provide details on type errors.
+Description:
+      Allows `Binary` serialization tagged with type information, allowing for
+      typechecking and useful error messages at the receiving site.
+      .
+      This package serves the same purpose as tagged-binary, with a couple of
+      key differences:
+      .
+      * Error messages provide details on type errors.
+      * Support of different kinds of serialized type annotations, each with
+        specific strengths and weaknesses.
+      * No depencency on @Internal@ modules of other libraries.
+      * Computationally almost as efficient as "Data.Binary" when precaching
+        type representations.
+      .
+      For information about usage, see the top of the "Data.Binary.Typed"
+      module.
 homepage:      https://github.com/quchen/binary-typed
 license:       BSD2
 license-file:  LICENSE

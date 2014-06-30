@@ -156,8 +156,8 @@ data TypeFormat =
         --   * Both the hash and the shown type must match to satisfy the
         --     typechecker.
         --   * Useful type errors ("expected X, received Y"). All types are
-        --     unqualified though, making @Foo.X@ and @Bar.X@ look identical in
-        --     error messages.
+        --     shown unqualified though, making @Foo.X@ and @Bar.X@ look
+        --     identical in error messages.
       | Shown
 
         -- | Compare the full representation of a data type.
@@ -170,8 +170,8 @@ data TypeFormat =
         --     @package-1.0 Foo.X@ and @package-1.1 Foo.X@ count as the same
         --     type.
         --   * Useful type errors ("expected X, received Y"). All types are
-        --     unqualified though, making @Foo.X@ and @Bar.X@ look identical in
-        --     error messages.
+        --     shown unqualified though, making @Foo.X@ and @Bar.X@ look
+        --     identical in error messages.
       | Full
 
       deriving (Eq, Ord, Show)
