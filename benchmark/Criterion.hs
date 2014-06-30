@@ -23,7 +23,8 @@ someShortString :: String
 someShortString = "Hello"
 
 someLongString :: String
-someLongString = take 100 ['a'..]
+someLongString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam\
+                 \ vitae lacinia tellus. Maecenas posuere. "
 
 someComplicated :: Complicated
 someComplicated = Right (Left "Hello")
