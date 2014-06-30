@@ -218,7 +218,7 @@ erase (Typed _ty value) = value
 --   if the types don't work out.
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
-      Cached' cache -> typecheck (Typed (decode cache) x)
+      Cached' cache -> decode' cache >>= \ty' -> typecheck (Typed ty' x)
       Full'   full     | exFull /= full -> Left (fullError full)
       Hashed' hash     | exHash /= hash -> Left (hashError hash)
       Shown'  hash str | (exHash, exShow) /= (hash, str)
@@ -243,6 +243,10 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
       fullError full = printf pat exShow (show full)
             where pat = "Type error: expected type %s,\
                         \ but received data with type %s"
+
+      decode' bs = case decodeOrFail bs of
+            Left  (_,_,err) -> Left  ("Cache error! " ++ err)
+            Right (_,_,val) -> Right val
 
 
 
