@@ -16,6 +16,7 @@ module Data.Binary.Typed.Internal (
       , getFormat
       , typecheck
       , erase
+      , precache
 
       -- * 'TypeRep'
       , TypeRep(..)
@@ -58,6 +59,7 @@ data TypeInformation = Untyped'
                      | Hashed'  Hash
                      | Shown'   Hash String
                      | Full'    TypeRep
+                     | Cached'  BSL.ByteString
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
@@ -70,6 +72,9 @@ getFormat (Untyped' {}) = Untyped
 getFormat (Hashed'  {}) = Hashed
 getFormat (Shown'   {}) = Shown
 getFormat (Full'    {}) = Full
+getFormat (Cached'  bs) = getFormat (decode bs)
+                        -- decode is safe here since caching ensures
+                        -- a well-formed input ByteString
 
 
 
@@ -110,6 +115,15 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
                either fail return (typecheck (Typed ty value))
                -- NB: 'fail' is safe in Get Monad
       put (Typed ty value) = put (ty, value)
+
+
+
+-- | Calculate the serialization of a 'TypeInformation' and store it in a
+--   'Typed' value so it does not have to be recalculated on every call to
+--   'encode'.
+precache :: Typed a -> Typed a
+precache t@(Typed (Cached' _) _) = t
+precache   (Typed ty          x) = Typed (Cached' (encode ty)) x
 
 
 
@@ -204,6 +218,7 @@ erase (Typed _ty value) = value
 --   if the types don't work out.
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
+      Cached' cache -> typecheck (Typed (decode cache) x)
       Full'   full     | exFull /= full -> Left (fullError full)
       Hashed' hash     | exHash /= hash -> Left (hashError hash)
       Shown'  hash str | (exHash, exShow) /= (hash, str)

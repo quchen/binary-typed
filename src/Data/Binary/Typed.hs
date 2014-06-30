@@ -24,6 +24,7 @@ module Data.Binary.Typed (
       , mapTyped
       , reValue
       , reType
+      , precache
 
 
       -- * Typed serialization
@@ -95,12 +96,13 @@ encodeTyped format value = encode (typed format value)
 
 
 -- | More efficient version of 'encodeTyped' that avoids recomputing the type
--- representation of the input by using the one already contained in the first
--- parameter. Note that the type's 'BSL.ByteString' representation is /not/
--- cached, i.e. its serialization is still recalculated every time.
+-- representation (and its serialized version) of the input by using the one
+-- already contained in the first parameter. Uses 'precache' internally.
 --
 -- @
--- 'encodeTypedLike' ty x = 'encode' ('reValue' ('const' x) ty)
+-- 'encodeTypedLike' ty x
+-- -- decodes observationally to
+-- 'encode' ('reValue' ('const' x) ty)
 -- @
 --
 -- To cache the input automatically, this function can be used to generate a new
@@ -118,7 +120,9 @@ encodeTypedLike
       => Typed a
       -> a
       -> BSL.ByteString
-encodeTypedLike (Typed ty _x) value = encode (Typed ty value)
+encodeTypedLike dummy =
+      let (Typed ty _) = precache dummy
+      in  encode . Typed ty
 
 
 

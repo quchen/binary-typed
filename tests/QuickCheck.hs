@@ -137,7 +137,9 @@ prop_api = tree tests where
 
       prop_encodeTypedLike :: Typed Int -> Int -> Bool
       prop_encodeTypedLike ty value =
-            encodeTypedLike ty value == encode (reValue (const value) ty)
+            (unsafeDecodeTyped (encodeTypedLike ty value) :: Int)
+            ==
+            unsafeDecodeTyped (encode (reValue (const value) ty))
 
 
 
