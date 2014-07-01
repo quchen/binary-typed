@@ -16,7 +16,7 @@ before_install:
 
 install:
       - cabal sandbox init
-      - cabal install --only-dependencies --enable-tests
+      - cabal install --only-dependencies --enable-tests --enable-documentation
 
 script:
       - cabal build

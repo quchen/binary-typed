@@ -17,7 +17,8 @@ Description:
       * Computationally almost as efficient as "Data.Binary" when precaching
         type representations.
       .
-      * No depencency on @Internal@ modules of other libraries.
+      * No depencency on @Internal@ modules of other libraries, and a very small
+        dependency footprint in general.
       .
       For information about usage, see the "Data.Binary.Typed.Tutorial" module.
 homepage:      https://github.com/quchen/binary-typed
