@@ -32,10 +32,9 @@ module Data.Binary.Typed.Internal (
 ) where
 
 
+
 import           GHC.Generics
 import           Text.Printf
-import           Control.Monad
-import           Data.Monoid
 -- import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -43,12 +42,9 @@ import           Data.Typeable (Typeable, typeOf)
 import qualified Data.Typeable as Ty
 
 import           Data.Binary
-import           Data.Binary.Get (getLazyByteString)
-import           Data.Binary.Put (putLazyByteString)
 
 -- Crypto stuff for hashing
-import qualified Crypto.Hash as Crypto
-import           Data.Byteable (toBytes)
+import           Data.Digest.Murmur64
 
 
 
@@ -78,19 +74,11 @@ getFormat (Cached'  bs) = getFormat (decode bs)
 
 
 
--- | A hash value of a 'TypeRep'. Currently a 32-bit 'BSL.ByteString'.
-data Hash = Hash BSL.ByteString
-      deriving (Eq, Ord)
-
-instance Show Hash where
-      show (Hash hash) = (BSL.foldr (\x xs -> hex x . xs) id hash) ""
-            where hex x = (printf "%02x" x ++) -- ad-hoc DList
-
--- Manual instance of a fixed-size ByteString type (avoids sending the length)
-instance Binary Hash where
-      put (Hash hash) = putLazyByteString hash >> replicateM_ pad (putWord8 0)
-            where pad = fromIntegral (32 - BSL.length hash)
-      get = fmap Hash (getLazyByteString 32)
+-- | A hash value of a 'TypeRep'. Currently a 64-bit value created using
+--   the MurmurHash2 algorithm.
+newtype Hash = Hash Word64
+      deriving (Eq, Ord, Show, Generic)
+instance Binary Hash
 
 
 
@@ -137,14 +125,15 @@ data TypeFormat =
         --     tag the data as untyped, required for the decoding step).
         Untyped
 
-        -- | Compare types by their hash values, currently an 'MD5'-based
-        --   representation of the 'Ty.TypeRep'.
+        -- | Compare types by their hash values (using the MurmurHash2
+        --   algorithm).
         --
-        --   * Requires only a handful of bytes per serialization.
+        --   * Requires only 8 additional bytes for the type information.
         --   * Subject to false positive due to hash collisions, although in
         --     practice this should almost never happen.
         --   * Type errors cannot tell the provided type ("Expected X, received
         --     type with hash H")
+
       | Hashed
 
         -- | Compare 'String' representation of types, obtained by calling
@@ -252,22 +241,7 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
 
 -- | Hash a 'Ty.TypeRep'.
 hashType :: Ty.TypeRep -> Hash
-hashType = Hash
-         . pad 32 -- Length of the hash
-         . BSL.fromStrict
-         . toBytes
-         . hash
-         . encode
-         . stripTypeRep
-
-      where
-
-      hash :: BSL.ByteString -> Crypto.Digest Crypto.MD5
-      hash = Crypto.hashlazy
-
-      -- Pad a ByteString to a certain length by *prepending* zeros or
-      -- shrink it by truncating.
-      pad l bs = BSL.take l (BSL.replicate (l - BSL.length bs) 0 <> bs)
+hashType = Hash . asWord64 . hash64 . stripTypeRep
 
 
 
@@ -279,6 +253,10 @@ instance Binary TypeRep
 instance Show TypeRep where
       show = show . unStripTypeRep
 
+instance Hashable64 TypeRep where
+      hash64Add (TypeRep tycon args) = hash64Add (tycon, args)
+
+
 
 
 -- | 'Ty.TyCon' without the (internal) fingerprint.
@@ -288,6 +266,9 @@ instance Binary TyCon
 
 instance Show TyCon where
       show = show . unStripTyCon
+
+instance Hashable64 TyCon where
+      hash64Add (TyCon p m c) = hash64Add (p, m, c)
 
 
 

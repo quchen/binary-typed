@@ -45,9 +45,8 @@ library
       other-extensions:    GADTs, DeriveGeneric
       build-depends:       base             >= 4.7 && < 5
                          , binary           >= 0.7
-                         , byteable         >= 0.1
                          , bytestring       >= 0.9
-                         , cryptohash       >= 0.11
+                         , murmur-hash      >= 0.1
 
 
 test-suite tasty
