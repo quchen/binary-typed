@@ -15,8 +15,7 @@ Description:
       * Computationally almost as efficient as "Data.Binary" when precaching
         type representations.
       .
-      For information about usage, see the top of the "Data.Binary.Typed"
-      module.
+      For information about usage, see the "Data.Binary.Typed.Tutorial" module.
 homepage:      https://github.com/quchen/binary-typed
 license:       BSD2
 license-file:  LICENSE
@@ -35,6 +34,7 @@ library
       default-language:    Haskell2010
       exposed-modules:     Data.Binary.Typed
                            Data.Binary.Typed.Internal
+                           Data.Binary.Typed.Tutorial
       ghc-options:         -Wall
       hs-source-dirs:      src
       other-extensions:    GADTs, DeriveGeneric
