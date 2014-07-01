@@ -85,8 +85,8 @@ prop_inverses_string = tree tests where
 -- | Test properties of 'TypeRep's and 'TyCon's.
 prop_typerep :: TestTree
 prop_typerep = tree tests where
-      tree = localOption (QuickCheckTests 1e4)
-           . localOption (QuickCheckMaxSize 1e3)
+      tree = localOption (QuickCheckTests 1e3)
+           . localOption (QuickCheckMaxSize 10)
            . testGroup "TypeRep, TyCon"
 
       tests = [ prop_hash_total
@@ -108,7 +108,7 @@ instance Arbitrary TyCon where
 
 instance Arbitrary TypeRep where
       arbitrary = TypeRep <$> arbitrary <*> args
-            where args = listOf (modifySize (`div` (2::Int)) arbitrary)
+            where args = listOf (modifySize (`div` 2) arbitrary)
 
 
 
