@@ -24,7 +24,7 @@ someShortString = "Hello"
 
 someLongString :: String
 someLongString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam\
-                 \ vitae lacinia tellus. Maecenas posuere. "
+                 \ vitae lacinia tellus. Maecenas posuere."
 
 someComplicated :: Complicated
 someComplicated = Right (Left "Hello")
@@ -95,7 +95,7 @@ bench_binaryVsTyped =
                                                            strSValFull
                                                            someShortString)
             ]
-      , bgroup "take 100 ['a'..]"
+      , bgroup "Lipsum (length 100)"
             [ bench_long_string_untyped
             , bgroup "recalculate" bench_long_string
             , bgroup "precache"    (bench_encode_precached strLValUntyped
