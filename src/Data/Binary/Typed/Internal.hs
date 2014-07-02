@@ -109,9 +109,16 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 -- | Calculate the serialization of a 'TypeInformation' and store it in a
 --   'Typed' value so it does not have to be recalculated on every call to
 --   'encode'.
+--
+--   This is typically applied to a dummy value created using 'typed' and
+--   the desired 'TypeFormat'; the actual data is then inserted using
+--   'Data.Binary.Typed.reValue', which is how
+--   'Data.Binary.Typed.encodeTyped' works.
 precache :: Typed a -> Typed a
 precache t@(Typed (Cached' _) _) = t
 precache   (Typed ty          x) = Typed (Cached' (encode ty)) x
+                                   -- This is the only place that constructs a
+                                   -- Cached' value.
 
 
 
