@@ -14,13 +14,23 @@ Description:
       * Error messages can provide details on type errors at the cost of
         longer message lengths to include the necessary information.
       .
-      * Computationally almost as efficient as "Data.Binary" when precaching
-        type representations.
+      * Serialization computationally almost as efficient as "Data.Binary" when
+        precaching type representations; decoding however is slower.
+        These values obviously depend a lot on the involved data and its type;
+        an example benchmark is shown in the picture below.
       .
       * No depencency on @Internal@ modules of other libraries, and a very small
         dependency footprint in general.
       .
       For information about usage, see the "Data.Binary.Typed.Tutorial" module.
+      .
+      Performance-wise, here is a value @Left (Left \<100 chars lipsum\>)@ of
+      type @Either (Char, Int) (Either String (Maybe Integer))@ benchmarked
+      using the @Hashed@ type representation:
+      .
+      <<http://i.imgur.com/nY6hgMP.png>>
+      .
+      <doc/bench-overview.png (local copy)>
 homepage:      https://github.com/quchen/binary-typed
 bug-reports:   https://github.com/quchen/binary-typed/issues
 license:       BSD2
@@ -31,6 +41,7 @@ copyright:     David Luposchainsky
 category:      Data, Serialization
 build-type:    Simple
 cabal-version: >= 1.20
+extra-source-files: doc/*.png
 
 source-repository head
       type:     git
