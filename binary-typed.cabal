@@ -76,3 +76,18 @@ benchmark criterion
                          , criterion
                          , deepseq
       ghc-options:         -Wall
+
+
+
+benchmark criterion-overview
+      default-language:    Haskell2010
+      type:                exitcode-stdio-1.0
+      hs-source-dirs:      benchmark
+      main-is:             CriterionOverview.hs
+      build-depends:       base
+                         , binary
+                         , binary-typed
+                         , criterion
+                         , deepseq
+                         , bytestring
+      ghc-options:         -Wall
