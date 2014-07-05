@@ -68,6 +68,14 @@ import Data.Binary.Typed.Internal
 
 -- $usage
 --
+-- This package is typically used for debugging purposes. 'Hashed' type
+-- information keeps the size overhead relatively low, but requires a certain
+-- amount of computational ressources. It is reliable at detecting errors, but
+-- not very good at telling specifics about it. If a problem is identified, the
+-- typing level can be increased to 'Shown' or 'Full', providing information
+-- about the involved types. If performance is critical, 'Untyped' \"typed\"
+-- encoding can be used, with minimal overhead compared to using 'Binary'
+-- directly.
 --
 -- For convenience, this module exports a couple of convenience functions that
 -- have the type-mangling baked in already. The above example could have been
