@@ -22,6 +22,7 @@ props = tree tests where
       tests = [ prop_typerep
               , prop_inverses
               , prop_api
+              , prop_internal
               ]
 
 
@@ -124,20 +125,30 @@ prop_api = tree tests where
 
       tree = testGroup "API"
 
-      tests = [ testProperty "erase"           prop_erase
-              , testProperty "reType"          prop_reType
-              , testProperty "encodeTyped"     prop_encodeTyped
-              , testProperty "encodeTypedLike" prop_encodeTypedLike
+      tests = [ testProperty "erase"            prop_erase
+              , testProperty "mapTyped id law"  prop_mapTyped_id
+              , testProperty "mapTyped f.g law" prop_mapTyped_compose
+              , testProperty "reType"           prop_reType
+              , testProperty "encodeTyped"      prop_encodeTyped
+              , testProperty "encodeTypedLike"  prop_encodeTypedLike
               ]
 
       prop_erase :: TypeFormat -> Int -> Bool
       prop_erase format x = erase (typed format x) == x
 
+      prop_mapTyped_id :: Typed Double -> Bool
+      prop_mapTyped_id x = x `isEqual` mapTyped id x
+
+      prop_mapTyped_compose
+            :: (Int -> Maybe Integer)
+            -> (Double -> Int)
+            -> Typed Double
+            -> Bool
+      prop_mapTyped_compose f g x =
+            mapTyped (f . g) x `isIdentical` (mapTyped f . mapTyped g) x
+
       prop_reType :: TypeFormat -> Typed Int -> Bool
-      prop_reType format x =
-            let (Typed tyA a) = reType format x
-                (Typed tyB b) = typed format (erase x)
-            in  (tyA, a) == (tyB, b)
+      prop_reType format x =reType format x `isIdentical` typed format (erase x)
 
       prop_encodeTyped :: TypeFormat -> Int -> Bool
       prop_encodeTyped format value =
@@ -151,8 +162,41 @@ prop_api = tree tests where
 
 
 
+-- | Equality of 'Typed' values, taking only the contained value into account.
+--   See also 'isIdentical'.
+isEqual :: Eq a => Typed a -> Typed a -> Bool
+isEqual (Typed _tyA a) (Typed _tyB b) = a == b
+
+
+
+-- | Equality of 'Typed' values, taking the contained type representation into
+--   account. This means that a cached and an uncached (otherwise identical)
+--   type representation are unequal.
+--   See also 'isEqual'.
+isIdentical :: Eq a => Typed a -> Typed a -> Bool
+isIdentical (Typed tyA a) (Typed tyB b) = (tyA, a) == (tyB, b)
+
+
+
 instance (Arbitrary a, Typeable a) => Arbitrary (Typed a) where
-      arbitrary = typed <$> arbitrary <*> arbitrary
+      arbitrary = frequency [(10, plain), (5, cached), (3, cached2)]
+            where plain = typed <$> arbitrary <*> arbitrary
+                  cached  = fmap precache plain
+                  cached2 = fmap precache cached
 
 instance Arbitrary TypeFormat where
       arbitrary = elements [Untyped, Hashed, Shown, Full]
+
+
+
+prop_internal :: TestTree
+prop_internal = tree tests where
+
+      tree = testGroup "Internal"
+
+      tests = [ testProperty "getFormat" prop_getFormat
+              ]
+
+      -- getFormat extracts the right format
+      prop_getFormat :: Typed Double -> Bool
+      prop_getFormat t@(Typed ty x) = t `isEqual` typed (getFormat ty) x
