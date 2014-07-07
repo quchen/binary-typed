@@ -12,6 +12,7 @@ import Data.Binary.Typed.Internal
 
 import Test.Tasty
 import Test.Tasty.QuickCheck
+import Text.Show.Functions ()
 
 
 
