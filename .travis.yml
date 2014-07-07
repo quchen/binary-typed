@@ -20,7 +20,7 @@ install:
 
 script:
       - cabal build
-      - cabal test --show-details=always
+      - cabal test
       - cabal haddock
 
 

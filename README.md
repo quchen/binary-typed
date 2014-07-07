@@ -24,12 +24,12 @@ a couple of key differences:
   These values obviously depend a lot on the involved data and its type;
   an example benchmark is shown in the picture below.
 
-- No depencency on @Internal@ modules of other libraries, and a very small
+- No depencency on `Internal` modules of other libraries, and a very small
   dependency footprint in general.
 
 For information about usage, see the `Tutorial` submodule.
 
-Performance-wise, here is a value `Left (Left <100 chars lipsum>)` of
+Performance-wise, here is a value `Right (Left <100 chars lipsum>)` of
 type `Either (Char, Int) (Either String (Maybe Integer))` benchmarked
 using the `Hashed` type representation:
 

@@ -12,7 +12,8 @@ import Data.Binary.Typed.Internal
 
 import Test.Tasty
 import Test.Tasty.QuickCheck
-import Text.Show.Functions ()
+import Text.Show.Functions () -- This fixes the missing Show (a->b) instance in
+                              -- Travis. Can probably be removed in the future.
 
 
 
