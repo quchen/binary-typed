@@ -36,10 +36,22 @@ data EncodeLengths = EL { info         :: String
 ppr :: EncodeLengths -> String
 ppr el = unlines [ info el
                  , printf "  Binary:        %d" (binary el)
-                 , printf "  Typed/Untyped: %d (+%d, +%2.2f%%)" (typedUntyped el) (absolute (binary el) (typedUntyped el)) (percent (binary el) (typedUntyped el))
-                 , printf "  Typed/Hashed:  %d (+%d, +%2.2f%%)" (typedHashed el)  (absolute (binary el) (typedHashed el))  (percent (binary el) (typedHashed el))
-                 , printf "  Typed/Shown:   %d (+%d, +%2.2f%%)" (typedShown el)   (absolute (binary el) (typedShown el))   (percent (binary el) (typedShown el))
-                 , printf "  Typed/Full:    %d (+%d, +%2.2f%%)" (typedFull el)    (absolute (binary el) (typedFull el))    (percent (binary el) (typedFull el))
+                 , printf "  Typed/Untyped: %d (+%d, +%2.2f%%)"
+                          (typedUntyped el)
+                          (absolute (binary el) (typedUntyped el))
+                          (percent  (binary el) (typedUntyped el))
+                 , printf "  Typed/Hashed:  %d (+%d, +%2.2f%%)"
+                          (typedHashed el)
+                          (absolute (binary el) (typedHashed el))
+                          (percent  (binary el) (typedHashed el))
+                 , printf "  Typed/Shown:   %d (+%d, +%2.2f%%)"
+                          (typedShown el)
+                          (absolute (binary el) (typedShown el))
+                          (percent  (binary el) (typedShown el))
+                 , printf "  Typed/Full:    %d (+%d, +%2.2f%%)"
+                          (typedFull el)
+                          (absolute (binary el) (typedFull el))
+                          (percent  (binary el) (typedFull el))
                  ]
 
 -- | Calculate how much percent the first parameter deviates from the second.

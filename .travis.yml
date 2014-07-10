@@ -21,6 +21,7 @@ install:
 script:
       - cabal build
       - cabal test
+      - cabal bench message-length
       - cabal haddock
 
 
