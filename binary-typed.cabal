@@ -40,7 +40,7 @@ maintainer:    dluposchainsky on googles email service
 copyright:     David Luposchainsky
 category:      Data, Serialization
 build-type:    Simple
-cabal-version: >= 1.20
+cabal-version: >= 1.10
 extra-source-files: doc/*.png
 
 source-repository head
