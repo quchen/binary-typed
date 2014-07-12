@@ -56,7 +56,7 @@ library
       ghc-options:         -Wall
       hs-source-dirs:      src
       other-extensions:    GADTs, DeriveGeneric
-      build-depends:       base             >= 4.7 && < 5
+      build-depends:       base             >= 4.6 && < 5
                          , binary           >= 0.7
                          , bytestring       >= 0.9
                          , murmur-hash      >= 0.1
@@ -70,7 +70,7 @@ test-suite tasty
       other-modules:       HUnit, QuickCheck
       other-extensions:    ScopedTypeVariables, NumDecimals
       type:                exitcode-stdio-1.0
-      build-depends:       base             >= 4.7 && < 5
+      build-depends:       base
                          , binary           >= 0.7
                          , binary-typed
                          , tasty            >= 0.8
