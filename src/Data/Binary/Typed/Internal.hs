@@ -128,14 +128,16 @@ data TypeFormat =
 
         -- | Include no type information.
         --
-        --   * Requires one byte more than using 'Binary' directly (namely to
-        --     tag the data as untyped, required for the decoding step).
+        --   * Requires one byte more compared to using 'Binary' directly
+        --     (to tag the data as untyped, required for the decoding step).
         Untyped
 
         -- | Compare types by their hash values (using the MurmurHash2
         --   algorithm).
         --
-        --   * Requires only 8 additional bytes for the type information.
+        --   * Requires nine bytes more compared to using 'Binary' directly for
+        --     the type information (one to tag as 'Hashed', eight for the hash
+        --     value)
         --   * Subject to false positive due to hash collisions, although in
         --     practice this should almost never happen.
         --   * Type errors cannot tell the provided type ("Expected X, received
