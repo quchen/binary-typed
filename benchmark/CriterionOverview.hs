@@ -15,7 +15,7 @@ import Control.Exception (evaluate)
 
 -- Encoding mode to be used
 mode :: TypeFormat
-mode = Hashed
+mode = Hashed64
 
 type Complicated = Either (Char, Int) (Either String (Maybe Integer))
 

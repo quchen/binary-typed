@@ -58,15 +58,18 @@ cafs =
       , NF defaultInt
       , NF defaultString
       , NF (encode intValUntyped) -- Evaluate the encodings to NF to force a 'Typed'. Hacky but works :-)
-      , NF (encode intValHashed)
+      , NF (encode intValHashed32)
+      , NF (encode intValHashed64)
       , NF (encode intValShown)
       , NF (encode intValFull)
       , NF (encode strSValUntyped)
-      , NF (encode strSValHashed)
+      , NF (encode strSValHashed32)
+      , NF (encode strSValHashed64)
       , NF (encode strSValShown)
       , NF (encode strSValFull)
       , NF (encode strLValUntyped)
-      , NF (encode strLValHashed)
+      , NF (encode strLValHashed32)
+      , NF (encode strLValHashed64)
       , NF (encode strLValShown)
       , NF (encode strLValFull)
       ]
@@ -81,7 +84,8 @@ bench_binaryVsTyped =
             [ bench_int_untyped
             , bgroup "recalculate" bench_int
             , bgroup "precache"    (bench_encode_precached intValUntyped
-                                                           intValHashed
+                                                           intValHashed32
+                                                           intValHashed64
                                                            intValShown
                                                            intValFull
                                                            someInt)
@@ -90,7 +94,8 @@ bench_binaryVsTyped =
             [ bench_short_string_untyped
             , bgroup "recalculate" bench_short_string
             , bgroup "precache"    (bench_encode_precached strSValUntyped
-                                                           strSValHashed
+                                                           strSValHashed32
+                                                           strSValHashed64
                                                            strSValShown
                                                            strSValFull
                                                            someShortString)
@@ -99,7 +104,8 @@ bench_binaryVsTyped =
             [ bench_long_string_untyped
             , bgroup "recalculate" bench_long_string
             , bgroup "precache"    (bench_encode_precached strLValUntyped
-                                                           strLValHashed
+                                                           strLValHashed32
+                                                           strLValHashed64
                                                            strLValShown
                                                            strLValFull
                                                            someLongString)
@@ -108,7 +114,8 @@ bench_binaryVsTyped =
             [ bench_complicated_untyped
             , bgroup "recalculate" bench_complicated
             , bgroup "precache"    (bench_encode_precached compLValUntyped
-                                                           compLValHashed
+                                                           compLValHashed32
+                                                           compLValHashed64
                                                            compLValShown
                                                            compLValFull
                                                            someComplicated)
@@ -126,29 +133,33 @@ defaultString = ""
 defaultComplicated :: Complicated
 defaultComplicated = Left (' ', 0)
 
-intValUntyped, intValHashed, intValShown, intValFull :: Typed Int
-intValUntyped = precache (typed  Untyped defaultInt)
-intValHashed  = precache (typed  Hashed  defaultInt)
-intValShown   = precache (typed  Shown   defaultInt)
-intValFull    = precache (typed  Full    defaultInt)
+intValUntyped, intValHashed32, intValHashed64, intValShown, intValFull :: Typed Int
+intValUntyped  = precache (typed Untyped  defaultInt)
+intValHashed32 = precache (typed Hashed32 defaultInt)
+intValHashed64 = precache (typed Hashed64 defaultInt)
+intValShown    = precache (typed Shown    defaultInt)
+intValFull     = precache (typed Full     defaultInt)
 
-strSValUntyped, strSValHashed, strSValShown, strSValFull :: Typed String
-strSValUntyped = precache (typed Untyped defaultString)
-strSValHashed  = precache (typed Hashed  defaultString)
-strSValShown   = precache (typed Shown   defaultString)
-strSValFull    = precache (typed Full    defaultString)
+strSValUntyped, strSValHashed32, strSValHashed64, strSValShown, strSValFull :: Typed String
+strSValUntyped  = precache (typed Untyped  defaultString)
+strSValHashed32 = precache (typed Hashed32 defaultString)
+strSValHashed64 = precache (typed Hashed64 defaultString)
+strSValShown    = precache (typed Shown    defaultString)
+strSValFull     = precache (typed Full     defaultString)
 
-strLValUntyped, strLValHashed, strLValShown, strLValFull :: Typed String
-strLValUntyped = precache (typed Untyped defaultString)
-strLValHashed  = precache (typed Hashed  defaultString)
-strLValShown   = precache (typed Shown   defaultString)
-strLValFull    = precache (typed Full    defaultString)
+strLValUntyped, strLValHashed32, strLValHashed64, strLValShown, strLValFull :: Typed String
+strLValUntyped  = precache (typed Untyped  defaultString)
+strLValHashed32 = precache (typed Hashed32 defaultString)
+strLValHashed64 = precache (typed Hashed64 defaultString)
+strLValShown    = precache (typed Shown    defaultString)
+strLValFull     = precache (typed Full     defaultString)
 
-compLValUntyped, compLValHashed, compLValShown, compLValFull :: Typed Complicated
-compLValUntyped = precache (typed Untyped defaultComplicated)
-compLValHashed  = precache (typed Hashed  defaultComplicated)
-compLValShown   = precache (typed Shown   defaultComplicated)
-compLValFull    = precache (typed Full    defaultComplicated)
+compLValUntyped, compLValHashed32, compLValHashed64, compLValShown, compLValFull :: Typed Complicated
+compLValUntyped  = precache (typed Untyped  defaultComplicated)
+compLValHashed32 = precache (typed Hashed32 defaultComplicated)
+compLValHashed64 = precache (typed Hashed64 defaultComplicated)
+compLValShown    = precache (typed Shown    defaultComplicated)
+compLValFull     = precache (typed Full     defaultComplicated)
 
 
 
@@ -178,7 +189,8 @@ bench_complicated_untyped = bench "Binary only" (nf encode someComplicated)
 
 formats :: [TypeFormat]
 formats = [ Untyped
-          , Hashed
+          , Hashed32
+          , Hashed64
           , Shown
           , Full
           ]
@@ -198,15 +210,17 @@ bench_encode x format = bench description (nf (encodeTyped format) x)
 bench_encode_precached
       :: (Binary a, Typeable a)
       => Typed a -- ^ Precached 'Untyped' dummy value
-      -> Typed a -- ^ dito, with 'Hashed'
+      -> Typed a -- ^ dito, with 'Hashed32'
+      -> Typed a -- ^ dito, with 'Hashed64'
       -> Typed a -- ^ dito, with 'Shown'
       -> Typed a -- ^ dito, with 'Full'
       -> a       -- ^ Actual value to encode
       -> [Benchmark]
-bench_encode_precached untyped hashed shown full x =
-      [ bench (description Untyped) (nf (encodeTypedLike untyped) x)
-      , bench (description Hashed)  (nf (encodeTypedLike hashed ) x)
-      , bench (description Shown)   (nf (encodeTypedLike shown  ) x)
-      , bench (description Full)    (nf (encodeTypedLike full   ) x)
+bench_encode_precached untyped hashed32 hashed64 shown full x =
+      [ bench (description Untyped)   (nf (encodeTypedLike untyped ) x)
+      , bench (description Hashed32)  (nf (encodeTypedLike hashed32) x)
+      , bench (description Hashed64)  (nf (encodeTypedLike hashed64) x)
+      , bench (description Shown)     (nf (encodeTypedLike shown   ) x)
+      , bench (description Full)      (nf (encodeTypedLike full    ) x)
       ]
       where description format = "Typed: " ++ show format

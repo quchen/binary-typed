@@ -47,11 +47,12 @@ prop_inverses_int = tree tests where
            . localOption (QuickCheckTests 1e3)
            . testGroup "Int"
 
-      tests = [ testProperty "Untyped" (prop Untyped)
-              , testProperty "Hashed"  (prop Hashed)
-              , testProperty "Shown"   (prop Shown)
-              , testProperty "Full"    (prop Full)
-              , testProperty "Cached"   prop_cached
+      tests = [ testProperty "Untyped"  (prop Untyped)
+              , testProperty "Hashed32" (prop Hashed32)
+              , testProperty "Hashed64" (prop Hashed64)
+              , testProperty "Shown"    (prop Shown)
+              , testProperty "Full"     (prop Full)
+              , testProperty "Cached"    prop_cached
               ]
 
       prop :: TypeFormat -> Int -> Bool
@@ -70,11 +71,12 @@ prop_inverses_string = tree tests where
            . localOption (QuickCheckTests 1e3)
            . testGroup "String"
 
-      tests = [ testProperty "Untyped" (prop Untyped)
-              , testProperty "Hashed"  (prop Hashed)
-              , testProperty "Shown"   (prop Shown)
-              , testProperty "Full"    (prop Full)
-              , testProperty "Cached"   prop_cached
+      tests = [ testProperty "Untyped"  (prop Untyped)
+              , testProperty "Hashed32" (prop Hashed32)
+              , testProperty "Hashed64" (prop Hashed64)
+              , testProperty "Shown"    (prop Shown)
+              , testProperty "Full"     (prop Full)
+              , testProperty "Cached"    prop_cached
               ]
 
       prop :: TypeFormat -> String -> Bool
@@ -92,17 +94,7 @@ prop_typerep = tree tests where
            . localOption (QuickCheckMaxSize 10)
            . testGroup "TypeRep, TyCon"
 
-      tests = [ prop_hash_total
-              ]
-
-
-
--- | Generate lots of hashes from random 'typeRep's and see whether one of them
---   crashes.
-prop_hash_total :: TestTree
-prop_hash_total = testProperty "Hash function total" prop where
-      prop = forAll arbitrary
-                    (\tyCon -> hashType (unStripTypeRep tyCon) `seq` True)
+      tests = []
 
 
 
@@ -187,7 +179,7 @@ instance (Arbitrary a, Typeable a) => Arbitrary (Typed a) where
                   cached2 = fmap precache cached
 
 instance Arbitrary TypeFormat where
-      arbitrary = elements [Untyped, Hashed, Shown, Full]
+      arbitrary = elements [Untyped, Hashed32, Hashed64, Shown, Full]
 
 
 

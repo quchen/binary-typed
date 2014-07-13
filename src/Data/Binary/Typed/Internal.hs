@@ -10,7 +10,8 @@ module Data.Binary.Typed.Internal (
       -- * 'Typed'
         Typed(..)
       , TypeInformation(..)
-      , Hash(..)
+      , Hash32(..)
+      , Hash64(..)
       , typed
       , TypeFormat(..)
       , getFormat
@@ -22,7 +23,8 @@ module Data.Binary.Typed.Internal (
       , TypeRep(..)
       , stripTypeRep
       , unStripTypeRep
-      , hashType
+      , hashType32
+      , hashType64
 
       -- * 'TyCon'
       , TyCon(..)
@@ -44,7 +46,8 @@ import qualified Data.Typeable as Ty
 import           Data.Binary
 
 -- Crypto stuff for hashing
-import           Data.Digest.Murmur64
+import qualified Data.Digest.Murmur32 as H32
+import qualified Data.Digest.Murmur64 as H64
 
 
 
@@ -52,10 +55,11 @@ import           Data.Digest.Murmur64
 --   recipient can do consistency checks. See 'TypeFormat' for more detailed
 --   information on the fields.
 data TypeInformation = Untyped'
-                     | Hashed'  Hash
-                     | Shown'   Hash String
-                     | Full'    TypeRep
-                     | Cached'  BSL.ByteString
+                     | Hashed32'  Hash32
+                     | Hashed64'  Hash64
+                     | Shown'     Hash32 String
+                     | Full'      TypeRep
+                     | Cached'    BSL.ByteString
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
@@ -68,19 +72,28 @@ instance Binary TypeInformation
 -- well-formed. In the public API, this is safe to do, since only well-typed
 -- 'Typed' values can be created in the first place.
 getFormat :: TypeInformation -> TypeFormat
-getFormat (Untyped' {}) = Untyped
-getFormat (Hashed'  {}) = Hashed
-getFormat (Shown'   {}) = Shown
-getFormat (Full'    {}) = Full
-getFormat (Cached'  bs) = getFormat (decode bs)
+getFormat (Untyped'   {}) = Untyped
+getFormat (Hashed32'  {}) = Hashed32
+getFormat (Hashed64'  {}) = Hashed64
+getFormat (Shown'     {}) = Shown
+getFormat (Full'      {}) = Full
+getFormat (Cached'    bs) = getFormat (decode bs)
+
+
+
+-- | A hash value of a 'TypeRep'. Currently a 32-bit value created using
+--   the MurmurHash2 algorithm.
+newtype Hash32 = Hash32 Word32
+      deriving (Eq, Ord, Show, Generic)
+instance Binary Hash32
 
 
 
 -- | A hash value of a 'TypeRep'. Currently a 64-bit value created using
 --   the MurmurHash2 algorithm.
-newtype Hash = Hash Word64
+newtype Hash64 = Hash64 Word64
       deriving (Eq, Ord, Show, Generic)
-instance Binary Hash
+instance Binary Hash64
 
 
 
@@ -135,26 +148,34 @@ data TypeFormat =
         -- | Compare types by their hash values (using the MurmurHash2
         --   algorithm).
         --
-        --   * Requires nine bytes more compared to using 'Binary' directly for
-        --     the type information (one to tag as 'Hashed', eight for the hash
-        --     value)
+        --   * Requires five bytes more compared to using 'Binary' directly for
+        --     the type information (one to tag as 'Hashed32', four for the
+        --     hash value)
         --   * Subject to false positive due to hash collisions, although in
         --     practice this should almost never happen.
         --   * Type errors cannot tell the provided type ("Expected X, received
         --     type with hash H")
-      | Hashed
+      | Hashed32
+
+        -- | Like 'Hashed32', but uses a 64-bit hash value.
+        --
+        --   * Requires nine bytes more compared to using 'Binary'.
+        --   * Hash collisions are even less likely to occur than with
+        --     'Hashed32'.
+      | Hashed64
 
         -- | Compare 'String' representation of types, obtained by calling
         --   'show' on the 'TypeRep', and also include a hash value
-        --   (like 'Hashed'). The former is mostly for readable error messages,
-        --   the latter provides collision resistance.
+        --   (like 'Hashed32'). The former is mostly for readable error
+        --   messages, the latter provides better collision resistance.
         --
-        --   * Data size larger than 'Hashed', but usually smaller than 'Full'.
+        --   * Data size larger than 'Hashed32', but usually smaller than
+        --     'Full'.
         --   * Both the hash and the shown type must match to satisfy the
         --     typechecker.
         --   * Useful type errors ("expected X, received Y"). All types are
-        --     shown unqualified though, making @Foo.X@ and @Bar.X@ look
-        --     identical in error messages.
+        --     shown (and checked) unqualified though, making @Foo.X@ and
+        --     @Bar.X@ count as equals.
       | Shown
 
         -- | Compare the full representation of a data type.
@@ -190,9 +211,10 @@ typed format x = Typed typeInformation x where
       ty = typeOf x
       typeInformation = case format of
             Untyped -> Untyped'
-            Hashed  -> Hashed'  (hashType     ty)
-            Shown   -> Shown'   (hashType     ty) (show ty)
-            Full    -> Full'    (stripTypeRep ty)
+            Hashed32  -> Hashed32'  (hashType32     ty)
+            Hashed64  -> Hashed64'  (hashType64     ty)
+            Shown     -> Shown'     (hashType32     ty) (show ty)
+            Full      -> Full'      (stripTypeRep   ty)
 
 
 
@@ -216,25 +238,27 @@ erase (Typed _ty value) = value
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
       Cached' cache -> decode' cache >>= \ty' -> typecheck (Typed ty' x)
-      Full'   full     | exFull /= full -> Left (fullError full)
-      Hashed' hash     | exHash /= hash -> Left (hashError hash)
-      Shown'  hash str | (exHash, exShow) /= (hash, str)
-                                        -> Left (shownError hash str)
+      Full'   full      | exFull /= full     -> Left (fullError full)
+      Hashed32' hash32  | exHash32 /= hash32 -> Left (hashError exHash32 hash32)
+      Hashed64' hash64  | exHash64 /= hash64 -> Left (hashError exHash64 hash64)
+      Shown'  hash32 str | (exHash32, exShow) /= (hash32, str)
+                                             -> Left (shownError hash32 str)
       _no_type_error -> Right ty
 
 
       where
 
       -- ex = expected
-      exType = typeOf x
-      exHash = hashType     exType
-      exShow = show         exType
-      exFull = stripTypeRep exType
+      exType   = typeOf x
+      exHash32 = hashType32   exType
+      exHash64 = hashType64   exType
+      exShow   = show         exType
+      exFull   = stripTypeRep exType
 
-      hashError hash = printf pat exShow (show exHash) (show hash)
+      hashError eHash hash = printf pat exShow (show eHash) (show hash)
             where pat = "Type error: expected type %s with hash %s,\
                         \ but received data with hash %s"
-      shownError hash str = printf pat exShow (show exHash) str (show hash)
+      shownError hash str = printf pat exShow (show exHash32) str (show hash)
             where pat = "Type error: expected type %s and hash %s,\
                         \ but received data with type %s and hash %s"
       fullError full = printf pat exShow (show full)
@@ -247,9 +271,15 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
 
 
 
--- | Hash a 'Ty.TypeRep'.
-hashType :: Ty.TypeRep -> Hash
-hashType = Hash . asWord64 . hash64 . stripTypeRep
+-- | Hash a 'Ty.TypeRep' to a 32-bit digest.
+hashType32 :: Ty.TypeRep -> Hash32
+hashType32 = Hash32 . H32.asWord32 . H32.hash32 . stripTypeRep
+
+
+
+-- | Hash a 'Ty.TypeRep' to a 64-bit digest.
+hashType64 :: Ty.TypeRep -> Hash64
+hashType64 = Hash64 . H64.asWord64 . H64.hash64 . stripTypeRep
 
 
 
@@ -261,8 +291,11 @@ instance Binary TypeRep
 instance Show TypeRep where
       show = show . unStripTypeRep
 
-instance Hashable64 TypeRep where
-      hash64Add (TypeRep tycon args) = hash64Add (tycon, args)
+instance H32.Hashable32 TypeRep where
+      hash32Add (TypeRep tycon args) = H32.hash32Add (tycon, args)
+
+instance H64.Hashable64 TypeRep where
+      hash64Add (TypeRep tycon args) = H64.hash64Add (tycon, args)
 
 
 
@@ -275,8 +308,11 @@ instance Binary TyCon
 instance Show TyCon where
       show = show . unStripTyCon
 
-instance Hashable64 TyCon where
-      hash64Add (TyCon p m c) = hash64Add (p, m, c)
+instance H32.Hashable32 TyCon where
+      hash32Add (TyCon p m c) = H32.hash32Add (p, m, c)
+
+instance H64.Hashable64 TyCon where
+      hash64Add (TyCon p m c) = H64.hash64Add (p, m, c)
 
 
 

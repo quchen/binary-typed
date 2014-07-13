@@ -31,7 +31,7 @@ For information about usage, see the `Tutorial` submodule.
 
 Performance-wise, here is a value `Right (Left <100 chars lipsum>)` of
 type `Either (Char, Int) (Either String (Maybe Integer))` benchmarked
-using the `Hashed` type representation:
+using the `Hashed64` type representation:
 
 ![](doc/bench-overview.png)
 
