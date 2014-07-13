@@ -63,14 +63,16 @@ instance Binary TypeInformation
 
 
 -- | Extract which 'TypeFormat' was used to create a certain 'TypeInformation'.
+--
+-- If the type is 'Cached'', then the contained information is assumed
+-- well-formed. In the public API, this is safe to do, since only well-typed
+-- 'Typed' values can be created in the first place.
 getFormat :: TypeInformation -> TypeFormat
 getFormat (Untyped' {}) = Untyped
 getFormat (Hashed'  {}) = Hashed
 getFormat (Shown'   {}) = Shown
 getFormat (Full'    {}) = Full
 getFormat (Cached'  bs) = getFormat (decode bs)
-                        -- decode is safe here since caching ensures
-                        -- a well-formed input ByteString
 
 
 
@@ -117,8 +119,6 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 precache :: Typed a -> Typed a
 precache t@(Typed (Cached' _) _) = t
 precache   (Typed ty          x) = Typed (Cached' (encode ty)) x
-                                   -- This is the only place that constructs a
-                                   -- Cached' value.
 
 
 
@@ -142,7 +142,6 @@ data TypeFormat =
         --     practice this should almost never happen.
         --   * Type errors cannot tell the provided type ("Expected X, received
         --     type with hash H")
-
       | Hashed
 
         -- | Compare 'String' representation of types, obtained by calling
