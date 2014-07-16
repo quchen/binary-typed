@@ -20,8 +20,11 @@ install:
 
 script:
       - cabal build
-      - cabal test
-      - cabal test message-length --show-details=always
+      - cabal test tasty
+      # - cabal test message-length --show-details=always
+      # ^ Testing message length is included in the tasty test. The
+      #   message-length benchmark is only for having a brief look inside the
+      #   generated stuff.
       - cabal haddock
 
 
