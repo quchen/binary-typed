@@ -73,6 +73,7 @@ test-suite tasty
       build-depends:       base
                          , binary           >= 0.7
                          , binary-typed
+                         , bytestring
                          , tasty            >= 0.8
                          , tasty-hunit      >= 0.8
                          , tasty-quickcheck >= 0.8

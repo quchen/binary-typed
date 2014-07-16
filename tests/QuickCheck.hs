@@ -5,7 +5,9 @@ module QuickCheck (props) where
 
 import Control.Applicative
 import Data.Typeable (Typeable)
+import Data.Int
 
+import Data.ByteString.Lazy as BSL
 import Data.Binary
 import Data.Binary.Typed
 import Data.Binary.Typed.Internal
@@ -25,6 +27,7 @@ props = tree tests where
               , prop_inverses
               , prop_api
               , prop_internal
+              , prop_sizes
               ]
 
 
@@ -194,3 +197,27 @@ prop_internal = tree tests where
       -- getFormat extracts the right format
       prop_getFormat :: Typed Double -> Bool
       prop_getFormat t@(Typed ty x) = t `isEqual` typed (getFormat ty) x
+
+
+
+-- | Are the additional message sizes stated by the docs accurate?
+--
+-- Untyped: +1 byte
+-- Hashed32: +5 byte
+-- Hashed64: +9 byte
+prop_sizes :: TestTree
+prop_sizes = tree tests where
+
+      tree = testGroup "Data sizes"
+
+      tests = [ testProperty "Untyped:  +1 byte" (prop_size_added Untyped 1)
+              , testProperty "Hashed32: +5 byte" (prop_size_added Hashed32 5)
+              , testProperty "Hashed64: +9 byte" (prop_size_added Hashed64 9)
+              ]
+
+      -- | Check whether data created with a certain format has a certain
+      --   overhead over the direct Binary serialization.
+      prop_size_added :: TypeFormat -> Int64 -> [Double] -> Bool
+      prop_size_added format n x = binSize + n == typedSize
+            where binSize   = BSL.length (encode x)
+                  typedSize = BSL.length (encodeTyped format x)
