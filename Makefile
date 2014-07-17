@@ -1,5 +1,7 @@
+NUM_CORES=$(shell grep -c ^processor /proc/cpuinfo)
+
 test :
-	./dist/build/tasty/tasty
+	./dist/build/tasty/tasty -j$(NUM_CORES)
 
 bench :
 	./dist/build/criterion/criterion -ocriterion-out.html
