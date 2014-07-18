@@ -23,12 +23,19 @@ import Text.Show.Functions () -- This fixes the missing Show (a->b) instance in
 props :: TestTree
 props = tree tests where
       tree = testGroup "QuickCheck"
-      tests = [ prop_typerep
-              , prop_inverses
+      tests = [ prop_inverses
               , prop_api
               , prop_internal
               , prop_sizes
               ]
+
+
+
+
+
+-- #############################################################################
+-- ###  Decode is left-inverse to encode  ######################################
+-- #############################################################################
 
 
 
@@ -47,7 +54,6 @@ prop_inverses_int :: TestTree
 prop_inverses_int = tree tests where
 
       tree = localOption (QuickCheckMaxSize maxBound)
-           . localOption (QuickCheckTests 1e3)
            . testGroup "Int"
 
       tests = [ testProperty "Untyped"  (prop Untyped)
@@ -71,7 +77,6 @@ prop_inverses_string :: TestTree
 prop_inverses_string = tree tests where
 
       tree = localOption (QuickCheckMaxSize 100)
-           . localOption (QuickCheckTests 1e3)
            . testGroup "String"
 
       tests = [ testProperty "Untyped"  (prop Untyped)
@@ -90,29 +95,11 @@ prop_inverses_string = tree tests where
 
 
 
--- | Test properties of 'TypeRep's and 'TyCon's.
-prop_typerep :: TestTree
-prop_typerep = tree tests where
-      tree = localOption (QuickCheckTests 1e3)
-           . localOption (QuickCheckMaxSize 10)
-           . testGroup "TypeRep, TyCon"
-
-      tests = []
 
 
-
-instance Arbitrary TyCon where
-      arbitrary = TyCon <$> arbitrary <*> arbitrary <*> arbitrary
-
-instance Arbitrary TypeRep where
-      arbitrary = TypeRep <$> arbitrary <*> args
-            where args = listOf (modifySize (`div` 2) arbitrary)
-
-
-
--- | Modify the size parameter of a 'Gen'.
-modifySize :: (Int -> Int) -> Gen a -> Gen a
-modifySize f gen = sized (\n -> resize (f n) gen)
+-- #############################################################################
+-- ###  API tests  #############################################################
+-- #############################################################################
 
 
 
@@ -122,12 +109,12 @@ prop_api = tree tests where
 
       tree = testGroup "API"
 
-      tests = [ testProperty "erase"            prop_erase
-              , testProperty "mapTyped id law"  prop_mapTyped_id
-              , testProperty "mapTyped f.g law" prop_mapTyped_compose
-              , testProperty "reType"           prop_reType
-              , testProperty "encodeTyped"      prop_encodeTyped
-              , testProperty "encodeTypedLike"  prop_encodeTypedLike
+      tests = [ testProperty "erase inverse of typed"                 prop_erase
+              , testProperty "mapTyped id ~ id"                       prop_mapTyped_id
+              , testProperty "mapTyped f.g ~ mapTyped f . mapTyped g" prop_mapTyped_compose
+              , testProperty "reType equivalent to reconstruction"    prop_reType
+              , testProperty "encodeTyped = encode.typed"             prop_encodeTyped
+              , testProperty "encodeTypedLike only reValues"          prop_encodeTypedLike
               ]
 
       prop_erase :: TypeFormat -> Int -> Bool
@@ -186,17 +173,62 @@ instance Arbitrary TypeFormat where
 
 
 
+
+-- #############################################################################
+-- ###  Internal functions  ####################################################
+-- #############################################################################
+
+
+
 prop_internal :: TestTree
 prop_internal = tree tests where
 
       tree = testGroup "Internal"
 
-      tests = [ testProperty "getFormat" prop_getFormat
+      tests = [ localOption (QuickCheckMaxSize 10)
+                            (testProperty "stripTypeRep . unStripTypeRep = id"
+                                          prop_stripTypeRep_inverses)
+              , testProperty "stripTyCon . unStripTyCon = id"
+                             prop_stripTyCon_inverses
+              , testProperty "getFormat extracts format correctly"
+                             prop_getFormat
               ]
 
-      -- getFormat extracts the right format
-      prop_getFormat :: Typed Double -> Bool
-      prop_getFormat t@(Typed ty x) = t `isEqual` typed (getFormat ty) x
+
+-- getFormat extracts the right format
+prop_getFormat :: Typed Double -> Bool
+prop_getFormat t@(Typed ty x) = t `isEqual` typed (getFormat ty) x
+
+
+prop_stripTypeRep_inverses :: TypeRep -> Bool
+prop_stripTypeRep_inverses x = (stripTypeRep . unStripTypeRep) x == x
+
+prop_stripTyCon_inverses :: TyCon -> Bool
+prop_stripTyCon_inverses x = (stripTyCon . unStripTyCon) x == x
+
+
+
+
+instance Arbitrary TyCon where
+      arbitrary = TyCon <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance Arbitrary TypeRep where
+      arbitrary = TypeRep <$> arbitrary <*> args
+            where args = listOf (modifySize (`div` 2) arbitrary)
+
+
+
+-- | Modify the size parameter of a 'Gen'.
+modifySize :: (Int -> Int) -> Gen a -> Gen a
+modifySize f gen = sized (\n -> resize (f n) gen)
+
+
+
+
+
+-- #############################################################################
+-- ###  Encoding sizes  ########################################################
+-- #############################################################################
 
 
 

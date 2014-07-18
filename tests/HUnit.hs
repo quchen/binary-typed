@@ -26,7 +26,7 @@ instance Binary X where
 -- | The entire HUnit test tree, to be imported qualified
 props :: TestTree
 props = tree tests where
-      tree = testGroup "HUnit"
+      tree x = testGroup "HUnit" [ testGroup "Should be type errors" x ]
       tests = [ error_coercions_simple_large_to_small
               , error_coercions_simple_small_to_large
               , error_coercions_complicated
@@ -56,7 +56,7 @@ wackyCoercion format value = decodeTyped (encodeTyped format value)
 --   memory (Bool).
 error_coercions_simple_large_to_small :: TestTree
 error_coercions_simple_large_to_small = tree tests where
-      tree = testGroup "Encode Int, decode Bool => Type error"
+      tree = testGroup "Encode Int, decode Bool"
       tests = [ error_int_bool_hashed32
               , error_int_bool_hashed64
               , error_int_bool_shown
@@ -66,7 +66,7 @@ error_coercions_simple_large_to_small = tree tests where
 -- | See 'error_coercions_simple_large_to_small'
 error_int_bool_hashed32 :: TestTree
 error_int_bool_hashed32 =
-      testCase "Hashed" $
+      testCase "Hashed32" $
 
       isLeft (wackyCoercion Hashed32 (123 :: Int) :: Either String Bool)
       @?
@@ -75,7 +75,7 @@ error_int_bool_hashed32 =
 -- | See 'error_coercions_simple_large_to_small'
 error_int_bool_hashed64 :: TestTree
 error_int_bool_hashed64 =
-      testCase "Hashed" $
+      testCase "Hashed64" $
 
       isLeft (wackyCoercion Hashed64 (123 :: Int) :: Either String Bool)
       @?
@@ -107,7 +107,7 @@ error_int_bool_full =
 --   memory (Bool).
 error_coercions_simple_small_to_large :: TestTree
 error_coercions_simple_small_to_large = tree tests where
-      tree = testGroup "Encode Bool, decode Int => Type error"
+      tree = testGroup "Encode Bool, decode Int"
       tests = [ error_bool_int_hashed32
               , error_bool_int_hashed64
               , error_bool_int_shown
@@ -117,7 +117,7 @@ error_coercions_simple_small_to_large = tree tests where
 -- | See 'error_coercions_simple_small_to_large'
 error_bool_int_hashed32 :: TestTree
 error_bool_int_hashed32 =
-      testCase "Hashed" $
+      testCase "Hashed32" $
 
       isLeft (wackyCoercion Hashed32 True :: Either String Int)
       @?
@@ -126,7 +126,7 @@ error_bool_int_hashed32 =
 -- | See 'error_coercions_simple_small_to_large'
 error_bool_int_hashed64 :: TestTree
 error_bool_int_hashed64 =
-      testCase "Hashed" $
+      testCase "Hashed64" $
 
       isLeft (wackyCoercion Hashed64 True :: Either String Int)
       @?
@@ -176,7 +176,7 @@ error_coercions_complicated = tree tests where
 -- | See 'error_coercions_complicated'
 error_long_type_hashed32 :: TestTree
 error_long_type_hashed32 =
-      testCase "Hashed" $
+      testCase "Hashed32" $
 
       isLeft (wackyCoercion Hashed32 long_type_input `asTypeOf` long_type_output)
       @?
@@ -187,7 +187,7 @@ error_long_type_hashed32 =
 -- | See 'error_coercions_complicated'
 error_long_type_hashed64 :: TestTree
 error_long_type_hashed64 =
-      testCase "Hashed" $
+      testCase "Hashed64" $
 
       isLeft (wackyCoercion Hashed64 long_type_input `asTypeOf` long_type_output)
       @?

@@ -20,7 +20,8 @@ install:
 
 script:
       - cabal build
-      - cabal test tasty
+      - cabal test tasty --test-options="-j$(grep -c ^processor /proc/cpuinfo)
+                         --quickcheck-tests 1000"
       # - cabal test message-length --show-details=always
       # ^ Testing message length is included in the tasty test. The
       #   message-length benchmark is only for having a brief look inside the
