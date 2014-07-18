@@ -23,6 +23,7 @@ module Data.Binary.Typed (
 
       -- ** Encoding
       , encodeTyped
+      , encodeTyped'
       , encodeTypedLike
 
       -- ** Decoding
@@ -36,7 +37,7 @@ module Data.Binary.Typed (
 
 import qualified Data.ByteString.Lazy as BSL
 
-import           Data.Typeable (Typeable)
+import           Data.Typeable (Typeable, typeOf)
 
 import           Data.Binary
 import           Data.Binary.Get (ByteOffset)
@@ -81,44 +82,73 @@ reType format (Typed _ty x) = typed format x
 
 
 -- | Encode a 'Typeable' value to 'BSL.ByteString' that includes type
--- information. If at all possible, prefer the more efficient 'encodeTypedLike'
--- though.
+-- information. This function is useful to create specialized typed encoding
+-- functions, because the type information is cached and does not need to be
+-- recalculated on every serialization.
+--
+-- Observationally, the following are all equivalent:
 --
 -- @
--- 'encodeTyped' format value = 'encode' ('typed' format value)
+-- 'encodeTyped' format value
+-- 'encodeTyped̈́\'' format value
+-- 'encode' ('typed' format value)
 -- @
+--
+-- * @'encodeTyped'@ will pre-calculate the type representation's serialized
+--   version. This is the most efficient caching, but requires additional
+--   data to send over the pre-serialized ByteString (namely its length, an
+--   'Int64', and a tag for the format of the serialized data, for a total of
+--   9 bytes overhead). Because of the added data length, this is suitable when
+--   type or data are already long enough so the additional bytes don't
+--   matter.
+--
+-- * @'encodeTyped\''@ only pre-calculates the type representation, but not its
+--   serialization. Requires no additional data, but requires serializing
+--   the type representation afresh on each serialization.
+--
+-- * @'encode' ('typed' ...)@ does no pre-calculation at all, and not
+--   preferrable in any scenario I'm familiar with. Requires no additional data.
 encodeTyped :: (Typeable a, Binary a)
             => TypeFormat
             -> a
             -> BSL.ByteString
-encodeTyped format value = encode (typed format value)
+encodeTyped format = encodeTypedCached precache format
 
 
 
--- | Version of 'encodeTyped' that avoids recomputing the type representation
---   of the input by using the one already contained in the first parameter.
---   This is usually /much/ more efficient than using 'encode', having a
---   computational cost similar to using 'Binary' directly.
---
--- @
--- 'encodeTypedLike' ty x
--- -- is observationally identical to
--- 'encode' ('reValue' ('const' x) ty)
--- @
---
--- This function is intended to generate new encoding functions like so:
---
--- @
--- encodeInt :: 'Int' -> 'Data.ByteString.Lazy.ByteString'
--- encodeInt = 'encodeTypedLike' ('typed' 'Full' 0)
--- @
-encodeTypedLike
-      :: (Typeable a, Binary a)
+-- | Like 'encodeTyped', but does not serialize in the caching process.
+--   For a comparison, see 'encodeTyped'.
+encodeTyped' :: (Typeable a, Binary a)
+            => TypeFormat
+            -> a
+            -> BSL.ByteString
+encodeTyped' format = encodeTypedCached id format
+
+
+
+-- | Create an encoding function, but modify the contained type information
+--   using a function. Used to implement 'encodeTyped' and 'encodeTyped\''.
+encodeTypedCached ::
+         (Binary a, Typeable a)
+      => (TypeInformation -> TypeInformation)
+      -> TypeFormat
+      -> a
+      -> BSL.ByteString
+encodeTypedCached f format = \x ->
+      let ty = f (makeTypeInformation format (typeOf x))
+      in  encode (Typed ty x)
+
+
+
+encodeTypedLike ::
+         (Typeable a, Binary a)
       => Typed a
       -> a
       -> BSL.ByteString
-encodeTypedLike dummy = let (Typed ty _) = precache dummy
-                        in  encode . Typed ty
+encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
+
+{-# DEPRECATED encodeTypedLike
+               "encodeTyped now caches automatically for all types" #-}
 
 
 

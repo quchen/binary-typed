@@ -13,6 +13,7 @@ module Data.Binary.Typed.Internal (
       , Hash32(..)
       , Hash64(..)
       , typed
+      , makeTypeInformation
       , TypeFormat(..)
       , getFormat
       , typecheck
@@ -121,17 +122,11 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 
 
 
--- | Calculate the serialization of a 'TypeInformation' and store it in a
---   'Typed' value so it does not have to be recalculated on every call to
---   'encode'.
---
---   This is typically applied to a dummy value created using 'typed' and
---   the desired 'TypeFormat'; the actual data is then inserted using
---   'Data.Binary.Typed.reValue', which is how
---   'Data.Binary.Typed.encodeTyped' works.
-precache :: Typed a -> Typed a
-precache t@(Typed (Cached' _) _) = t
-precache   (Typed ty          x) = Typed (Cached' (encode ty)) x
+-- | Store 'TypeInformation' in pre-serialized form so it does not have to be
+--   re-serialized on each serialization.
+precache :: TypeInformation -> TypeInformation
+precache c@(Cached' _) = c
+precache ty            = Cached' (encode ty)
 
 
 
@@ -207,14 +202,20 @@ data TypeFormat =
 --
 -- The decode site can now verify whether decoding happens with the right type.
 typed :: Typeable a => TypeFormat -> a -> Typed a
-typed format x = Typed typeInformation x where
-      ty = typeOf x
-      typeInformation = case format of
-            Untyped -> Untyped'
-            Hashed32  -> Hashed32'  (hashType32     ty)
-            Hashed64  -> Hashed64'  (hashType64     ty)
-            Shown     -> Shown'     (hashType32     ty) (show ty)
-            Full      -> Full'      (stripTypeRep   ty)
+typed format x = Typed (makeTypeInformation format (typeOf x)) x
+
+
+
+-- | Create the 'TypeInformation' to be stored inside a 'Typed' value from
+--   a 'Ty.TypeRep'.
+makeTypeInformation :: TypeFormat -> Ty.TypeRep -> TypeInformation
+makeTypeInformation format ty = case format of
+      Untyped   -> Untyped'
+      Hashed32  -> Hashed32'  (hashType32     ty)
+      Hashed64  -> Hashed64'  (hashType64     ty)
+      Shown     -> Shown'     (hashType32     ty) (show ty)
+      Full      -> Full'      (stripTypeRep   ty)
+
 
 
 
