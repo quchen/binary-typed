@@ -202,7 +202,7 @@ prop_internal = tree tests where
 
 -- | Are the additional message sizes stated by the docs accurate?
 --
--- Untyped: +1 byte
+-- Untyped:  +1 byte
 -- Hashed32: +5 byte
 -- Hashed64: +9 byte
 prop_sizes :: TestTree
@@ -210,14 +210,31 @@ prop_sizes = tree tests where
 
       tree = testGroup "Data sizes"
 
-      tests = [ testProperty "Untyped:  +1 byte" (prop_size_added Untyped 1)
+      tests = [ testProperty "Untyped:  +1 byte" (prop_size_added Untyped  1)
               , testProperty "Hashed32: +5 byte" (prop_size_added Hashed32 5)
               , testProperty "Hashed64: +9 byte" (prop_size_added Hashed64 9)
               ]
 
-      -- | Check whether data created with a certain format has a certain
-      --   overhead over the direct Binary serialization.
-      prop_size_added :: TypeFormat -> Int64 -> [Double] -> Bool
-      prop_size_added format n x = binSize + n == typedSize
-            where binSize   = BSL.length (encode x)
-                  typedSize = BSL.length (encodeTyped format x)
+
+type Complicated = Either (Char, Int) (Either String (Maybe Integer))
+
+-- | Check whether data created with a certain format has a certain
+--   overhead over the direct Binary serialization.
+prop_size_added :: TypeFormat -> Int64  -> Property
+prop_size_added format n =
+      conjoin [ forAll arbitrary (verify :: Integer     -> Bool)
+              , forAll arbitrary (verify :: Double      -> Bool)
+              , forAll arbitrary (verify :: [Double]    -> Bool)
+              , forAll arbitrary (verify :: Complicated -> Bool)
+              ]
+
+      where
+
+      binSize :: Binary a => a -> Int64
+      binSize   = BSL.length . encode
+
+      typedSize :: (Binary a, Typeable a) => a -> Int64
+      typedSize = BSL.length . encodeTyped format
+
+      verify :: (Binary a, Typeable a) => a -> Bool
+      verify x = binSize x + n == typedSize x
