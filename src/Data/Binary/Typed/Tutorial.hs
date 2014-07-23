@@ -68,7 +68,7 @@ import Data.Binary.Typed.Internal
 
 -- $usage
 --
--- This package is typically used for debugging purposes. 'Hashed' type
+-- This package is typically used for debugging purposes. 'Hashed32' type
 -- information keeps the size overhead relatively low, but requires a certain
 -- amount of computational ressources. It is reliable at detecting errors, but
 -- not very good at telling specifics about it. If a problem is identified, the
@@ -83,29 +83,29 @@ import Data.Binary.Typed.Internal
 --
 -- @
 -- test3 = let val = 10 :: 'Int'
---             enc = 'encodeTyped' val
+--             enc = 'encodeTyped' 'Hashed32' val
 --             dec = 'decodeTyped' enc :: 'Either' 'String' 'Bool'
 --         in  'print' dec
 -- @
 --
--- However, using 'encodeTyped' is computationally inefficient when many
--- messages of the same type are serialized, since it recomputes a serialized
--- version of that type for every single serialized value from scratch.
--- 'encodeTypedLike' exists to remedy that: it takes a separately constructed
--- 'Typed' dummy value, and computes a new serialization function for that type
--- out of it. This serialization function then re-uses the type representation
--- of the dummy value, and simply replaces the contained value on each
--- serialization so that no unnecessary overhead is introduced.
+-- Using 'encodeTyped' in particular has a significant advantage: when used to
+-- create new specialized encoding functions, the type information has to be
+-- calculated only once, and can be shared among further invocations of the
+-- function. In other words, using
 --
 -- @
--- -- Computes 'Int's type representation 100 times:
--- manyIntsNaive = map 'encodeTyped' [1..100 :: 'Int']
---
--- -- Much more efficient: prepare dummy value to precache the
--- -- type representation, computing it only once:
--- 'encodeInt' = 'encodeTypedLike' ('typed' 'Full' (0 :: 'Int'))
--- manyIntsCached = map 'encodeInt' [1..100]
+-- encodeInt :: 'Int' -> 'Data.ByteString.Lazy.ByteString'
+-- encodeInt = 'encodeTyped' 'Hashed32'
 -- @
+--
+-- is much more efficient than
+--
+-- @
+-- encodeInt :: 'Int' -> 'Data.ByteString.Lazy.ByteString'
+-- encodeInt = 'encode' . 'typed' 'Hashed32'
+-- @
+--
+-- since the latter recalculates the hash of \"Int\" on every invocation.
 
 
 
@@ -127,13 +127,11 @@ import Data.Binary.Typed.Internal
 --   * 'mapTyped' (change values contained in 'Typed's)
 --   * 'reValue' (change value, but don't recompute type representation)
 --   * 'reType' (change type representation, but keep value)
---   * 'precache' (compute serialized type representation, useful as an optimization)
+--   * 'preserialize' (compute serialized type representation and cache it, useful as an optimization)
 --
--- Lastly, there are a number of encoding/decoding functions, mostly for
--- convenience:
+-- Lastly, there are a number of encoding/decoding functions:
 --
---   * 'encodeTyped' (pack in 'Typed' and then 'encode')
---   * 'encodeTypedLike' (usually much more efficient version of 'encodeTyped')
+--   * 'encodeTyped' (pack in 'Typed' and then 'encode', but more efficient)
 --   * 'decodeTyped' (decode 'Typed' 'Data.ByteString.Lazy.ByteString' to @'Either' 'String' a@)
 --   * 'decodeTypedOrFail' (like 'decodeTyped', but with more meta information)
 --   * 'unsafeDecodeTyped' (which throws a runtime error on type mismatch)

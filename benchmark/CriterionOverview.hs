@@ -30,19 +30,11 @@ value_encodedTyped  = encodeTyped mode value
 
 
 
--- Cached typed encoder
-encodeTyped' :: Complicated -> ByteString
-encodeTyped' = encodeTypedLike (typed mode dummyValue)
-      where dummyValue :: Complicated
-            dummyValue = Left ('x', 0)
-
-
-
 main :: IO ()
 main = do
       evaluate (value `deepseq` ())
-      defaultMain [ bgroup "encode only"   bench_encode
-                  , bgroup "decode only"   bench_decode
+      defaultMain [ bgroup "encode"        bench_encode
+                  , bgroup "decode"        bench_decode
                   , bgroup "encode+decode" bench_both
                   ]
 
@@ -55,24 +47,18 @@ main = do
 
 bench_encode :: [Benchmark]
 bench_encode = [ bench_encode_binaryOnly
-               , bench_encode_uncached
-               , bench_encode_cached
+               , bench_encode_typed
                ]
 
 bench_encode_binaryOnly :: Benchmark
 bench_encode_binaryOnly = bench d (nf f value)
-      where d = "Binary only"
+      where d = "Binary"
             f = encode
 
-bench_encode_uncached :: Benchmark
-bench_encode_uncached = bench d (nf f value)
-      where d = "Uncached"
+bench_encode_typed :: Benchmark
+bench_encode_typed = bench d (nf f value)
+      where d = "Typed with " ++ show mode
             f = encodeTyped mode
-
-bench_encode_cached :: Benchmark
-bench_encode_cached = bench d (nf f value)
-      where d = "Cached"
-            f = encodeTyped'
 
 
 
@@ -97,7 +83,7 @@ bench_decode_binaryOnly = bench d (nf f value_encodedBinary)
 
 bench_decode_typed :: Benchmark
 bench_decode_typed = bench d (nf f value_encodedTyped)
-      where d = "Typed"
+      where d = "Typed with " ++ show mode
             f :: ByteString -> Complicated
             f = unsafeDecodeTyped
 
@@ -111,8 +97,7 @@ bench_decode_typed = bench d (nf f value_encodedTyped)
 
 bench_both :: [Benchmark]
 bench_both = [ bench_both_binaryOnly
-             , bench_both_uncached
-             , bench_both_cached
+             , bench_both_typed
              ]
 
 
@@ -122,14 +107,8 @@ bench_both_binaryOnly = bench d (nf f value)
             f :: Complicated -> Complicated
             f = decode . encode
 
-bench_both_uncached :: Benchmark
-bench_both_uncached = bench d (nf f value)
-      where d = "Uncached"
+bench_both_typed :: Benchmark
+bench_both_typed = bench d (nf f value)
+      where d = "Typed with " ++ show mode
             f :: Complicated -> Complicated
             f = unsafeDecodeTyped . encodeTyped mode
-
-bench_both_cached :: Benchmark
-bench_both_cached = bench d (nf f value)
-      where d = "Cached"
-            f :: Complicated -> Complicated
-            f = unsafeDecodeTyped . encodeTyped'

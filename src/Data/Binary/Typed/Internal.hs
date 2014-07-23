@@ -13,11 +13,12 @@ module Data.Binary.Typed.Internal (
       , Hash32(..)
       , Hash64(..)
       , typed
+      , makeTypeInformation
       , TypeFormat(..)
       , getFormat
       , typecheck
       , erase
-      , precache
+      , preserialize
 
       -- * 'TypeRep'
       , TypeRep(..)
@@ -121,18 +122,28 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 
 
 
--- | Calculate the serialization of a 'TypeInformation' and store it in a
---   'Typed' value so it does not have to be recalculated on every call to
---   'encode'.
+-- | Sometimes it can be beneficial to serialize the type information in
+--   advance, so that the maybe costly serialization step does not have to be
+--   repeated on every invocation of 'encode'. Preserialization comes at a price
+--   though, as the directly contained 'BSL.ByteString'requires its length to
+--   be included in the final serialization, yielding a 8-byte overhead for the
+--   required 'Data.Int.Int64', and one for the tag of what was serialized
+--   ("shown or full?").
 --
---   This is typically applied to a dummy value created using 'typed' and
---   the desired 'TypeFormat'; the actual data is then inserted using
---   'Data.Binary.Typed.reValue', which is how
---   'Data.Binary.Typed.encodeTyped' works.
-precache :: Typed a -> Typed a
-precache t@(Typed (Cached' _) _) = t
-precache   (Typed ty          x) = Typed (Cached' (encode ty)) x
-
+--   This function calculates the serialized version of 'TypeInformation' in
+--   cases where the required 8 bytes are negligible (determined by an
+--   arbitrary threshold, currently 10*9 bytes).
+--
+--   Used to make 'Data.Binary.Typed.encodeTyped' more efficient; the source
+--   there also makes a good usage example.
+preserialize :: TypeInformation -> TypeInformation
+preserialize   c@(Cached'   _) = c
+preserialize   u@(Untyped'   ) = u
+preserialize h32@(Hashed32' _) = h32
+preserialize h64@(Hashed64' _) = h64
+preserialize x | BSL.length encoded > 10*9 = Cached' encoded
+               | otherwise = x
+               where encoded = encode x
 
 
 -- | Different ways of including/verifying type information of serialized
@@ -207,14 +218,20 @@ data TypeFormat =
 --
 -- The decode site can now verify whether decoding happens with the right type.
 typed :: Typeable a => TypeFormat -> a -> Typed a
-typed format x = Typed typeInformation x where
-      ty = typeOf x
-      typeInformation = case format of
-            Untyped -> Untyped'
-            Hashed32  -> Hashed32'  (hashType32     ty)
-            Hashed64  -> Hashed64'  (hashType64     ty)
-            Shown     -> Shown'     (hashType32     ty) (show ty)
-            Full      -> Full'      (stripTypeRep   ty)
+typed format x = Typed (makeTypeInformation format (typeOf x)) x
+
+
+
+-- | Create the 'TypeInformation' to be stored inside a 'Typed' value from
+--   a 'Ty.TypeRep'.
+makeTypeInformation :: TypeFormat -> Ty.TypeRep -> TypeInformation
+makeTypeInformation format ty = case format of
+      Untyped   -> Untyped'
+      Hashed32  -> Hashed32'  (hashType32     ty)
+      Hashed64  -> Hashed64'  (hashType64     ty)
+      Shown     -> Shown'     (hashType32     ty) (show ty)
+      Full      -> Full'      (stripTypeRep   ty)
+
 
 
 

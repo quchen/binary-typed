@@ -8,3 +8,6 @@ bench :
 
 bench2 :
 	./dist/build/criterion-overview/criterion-overview -ocriterion-overview-out.html
+
+messagelength :
+	./dist/build/message-length/message-length

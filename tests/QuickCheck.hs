@@ -1,4 +1,5 @@
 {-# LANGUAGE NumDecimals #-}
+{-# LANGUAGE RankNTypes #-}
 
 module QuickCheck (props) where
 
@@ -61,14 +62,10 @@ prop_inverses_int = tree tests where
               , testProperty "Hashed64" (prop Hashed64)
               , testProperty "Shown"    (prop Shown)
               , testProperty "Full"     (prop Full)
-              , testProperty "Cached"    prop_cached
               ]
 
       prop :: TypeFormat -> Int -> Bool
       prop format i = unsafeDecodeTyped (encodeTyped format i) == i
-
-      prop_cached :: Typed Int -> Int -> Bool
-      prop_cached dummy i = unsafeDecodeTyped (encodeTypedLike dummy i) == i
 
 
 
@@ -84,14 +81,10 @@ prop_inverses_string = tree tests where
               , testProperty "Hashed64" (prop Hashed64)
               , testProperty "Shown"    (prop Shown)
               , testProperty "Full"     (prop Full)
-              , testProperty "Cached"    prop_cached
               ]
 
       prop :: TypeFormat -> String -> Bool
       prop format i = unsafeDecodeTyped (encodeTyped format i) == i
-
-      prop_cached :: Typed String -> String -> Bool
-      prop_cached dummy i = unsafeDecodeTyped (encodeTypedLike dummy i) == i
 
 
 
@@ -114,7 +107,6 @@ prop_api = tree tests where
               , testProperty "mapTyped f.g ~ mapTyped f . mapTyped g" prop_mapTyped_compose
               , testProperty "reType equivalent to reconstruction"    prop_reType
               , testProperty "encodeTyped = encode.typed"             prop_encodeTyped
-              , testProperty "encodeTypedLike only reValues"          prop_encodeTypedLike
               ]
 
       prop_erase :: TypeFormat -> Int -> Bool
@@ -136,13 +128,9 @@ prop_api = tree tests where
 
       prop_encodeTyped :: TypeFormat -> Int -> Bool
       prop_encodeTyped format value =
-            encodeTyped format value == encode (typed format value)
-
-      prop_encodeTypedLike :: Typed Int -> Int -> Bool
-      prop_encodeTypedLike ty value =
-            (unsafeDecodeTyped (encodeTypedLike ty value) :: Int)
+            (unsafeDecodeTyped (encodeTyped format value) :: Int)
             ==
-            unsafeDecodeTyped (encode (reValue (const value) ty))
+            (unsafeDecodeTyped (encode (typed format value)) :: Int)
 
 
 
@@ -165,8 +153,9 @@ isIdentical (Typed tyA a) (Typed tyB b) = (tyA, a) == (tyB, b)
 instance (Arbitrary a, Typeable a) => Arbitrary (Typed a) where
       arbitrary = frequency [(10, plain), (5, cached), (3, cached2)]
             where plain = typed <$> arbitrary <*> arbitrary
-                  cached  = fmap precache plain
-                  cached2 = fmap precache cached
+                  cached  = fmap preserializeTyped plain
+                  cached2 = fmap preserializeTyped cached
+                  preserializeTyped (Typed ty x) = Typed (preserialize ty) x
 
 instance Arbitrary TypeFormat where
       arbitrary = elements [Untyped, Hashed32, Hashed64, Shown, Full]
@@ -242,9 +231,12 @@ prop_sizes = tree tests where
 
       tree = testGroup "Data sizes"
 
-      tests = [ testProperty "Untyped:  +1 byte" (prop_size_added Untyped  1)
-              , testProperty "Hashed32: +5 byte" (prop_size_added Hashed32 5)
-              , testProperty "Hashed64: +9 byte" (prop_size_added Hashed64 9)
+      tests = [ testProperty "Untyped:  +1 byte"
+                             (prop_size_added (encodeTyped Untyped)  1)
+              , testProperty "Hashed32: +5 byte"
+                             (prop_size_added (encodeTyped Hashed32) 5)
+              , testProperty "Hashed64: +9 byte"
+                             (prop_size_added (encodeTyped Hashed64) 9)
               ]
 
 
@@ -252,8 +244,11 @@ type Complicated = Either (Char, Int) (Either String (Maybe Integer))
 
 -- | Check whether data created with a certain format has a certain
 --   overhead over the direct Binary serialization.
-prop_size_added :: TypeFormat -> Int64  -> Property
-prop_size_added format n =
+prop_size_added ::
+         (forall a. (Typeable a, Binary a) => a -> BSL.ByteString)
+      -> Int64
+      -> Property
+prop_size_added serializer n =
       conjoin [ forAll arbitrary (verify :: Integer     -> Bool)
               , forAll arbitrary (verify :: Double      -> Bool)
               , forAll arbitrary (verify :: [Double]    -> Bool)
@@ -266,7 +261,7 @@ prop_size_added format n =
       binSize   = BSL.length . encode
 
       typedSize :: (Binary a, Typeable a) => a -> Int64
-      typedSize = BSL.length . encodeTyped format
+      typedSize = BSL.length . serializer
 
       verify :: (Binary a, Typeable a) => a -> Bool
       verify x = binSize x + n == typedSize x

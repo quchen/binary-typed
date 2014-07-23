@@ -28,7 +28,7 @@ Description:
       type @Either (Char, Int) (Either String (Maybe Integer))@ benchmarked
       using the @Hashed64@ type representation:
       .
-      <<http://i.imgur.com/nY6hgMP.png>>
+      <<http://i.imgur.com/JzhYqGZ.png>>
       .
       <doc/bench-overview.png (local copy)>
 homepage:           https://github.com/quchen/binary-typed
