@@ -18,7 +18,7 @@ module Data.Binary.Typed.Internal (
       , getFormat
       , typecheck
       , erase
-      , precache
+      , preserialize
 
       -- * 'TypeRep'
       , TypeRep(..)
@@ -122,12 +122,28 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 
 
 
--- | Store 'TypeInformation' in pre-serialized form so it does not have to be
---   re-serialized on each serialization.
-precache :: TypeInformation -> TypeInformation
-precache c@(Cached' _) = c
-precache ty            = Cached' (encode ty)
-
+-- | Sometimes it can be beneficial to serialize the type information in
+--   advance, so that the maybe costly serialization step does not have to be
+--   repeated on every invocation of 'encode'. Preserialization comes at a price
+--   though, as the directly contained 'BSL.ByteString'requires its length to
+--   be included in the final serialization, yielding a 8-byte overhead for the
+--   required 'Data.Int.Int64', and one for the tag of what was serialized
+--   ("shown or full?").
+--
+--   This function calculates the serialized version of 'TypeInformation' in
+--   cases where the required 8 bytes are negligible (determined by an
+--   arbitrary threshold, currently 10*9 bytes).
+--
+--   Used to make 'Data.Binary.Typed.encodeTyped' more efficient; the source
+--   there also makes a good usage example.
+preserialize :: TypeInformation -> TypeInformation
+preserialize   c@(Cached'   _) = c
+preserialize   u@(Untyped'   ) = u
+preserialize h32@(Hashed32' _) = h32
+preserialize h64@(Hashed64' _) = h64
+preserialize x | BSL.length encoded > 10*9 = Cached' encoded
+               | otherwise = x
+               where encoded = encode x
 
 
 -- | Different ways of including/verifying type information of serialized

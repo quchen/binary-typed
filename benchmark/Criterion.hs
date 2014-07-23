@@ -65,19 +65,19 @@ bench_binaryVsTyped :: [Benchmark]
 bench_binaryVsTyped =
       [ bgroup "Int"
             [ bench_int_untyped
-            , bgroup "recalculate" bench_int
+            , bgroup "Typed" bench_int
             ]
       , bgroup "\"hello\""
             [ bench_short_string_untyped
-            , bgroup "recalculate" bench_short_string
+            , bgroup "Typed" bench_short_string
             ]
       , bgroup "Lipsum (length 100)"
             [ bench_long_string_untyped
-            , bgroup "recalculate" bench_long_string
+            , bgroup "Typed" bench_long_string
             ]
       , bgroup "Complicated type"
             [ bench_complicated_untyped
-            , bgroup "recalculate" bench_complicated
+            , bgroup "Typed" bench_complicated
             ]
       ]
 
@@ -122,4 +122,4 @@ bench_encode
       -> TypeFormat
       -> Benchmark
 bench_encode x format = bench description (nf (encodeTyped format) x)
-      where description = "Typed: " ++ show format
+      where description = show format

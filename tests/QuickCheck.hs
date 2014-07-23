@@ -153,9 +153,9 @@ isIdentical (Typed tyA a) (Typed tyB b) = (tyA, a) == (tyB, b)
 instance (Arbitrary a, Typeable a) => Arbitrary (Typed a) where
       arbitrary = frequency [(10, plain), (5, cached), (3, cached2)]
             where plain = typed <$> arbitrary <*> arbitrary
-                  cached  = fmap precacheTyped plain
-                  cached2 = fmap precacheTyped cached
-                  precacheTyped (Typed ty x) = Typed (precache ty) x
+                  cached  = fmap preserializeTyped plain
+                  cached2 = fmap preserializeTyped cached
+                  preserializeTyped (Typed ty x) = Typed (preserialize ty) x
 
 instance Arbitrary TypeFormat where
       arbitrary = elements [Untyped, Hashed32, Hashed64, Shown, Full]
@@ -231,18 +231,12 @@ prop_sizes = tree tests where
 
       tree = testGroup "Data sizes"
 
-      tests = [ testProperty "Untyped:  +1 byte (not pre-serialized)"
-                             (prop_size_added (encodeTyped' Untyped)  1)
-              , testProperty "Hashed32: +5 byte (not pre-serialized)"
-                             (prop_size_added (encodeTyped' Hashed32) 5)
-              , testProperty "Hashed64: +9 byte (not pre-serialized)"
-                             (prop_size_added (encodeTyped' Hashed64) 9)
-              , testProperty "Untyped:  +10 byte (pre-serialized)"
-                             (prop_size_added (encodeTyped  Untyped)  10)
-              , testProperty "Hashed32: +14 byte (pre-serialized)"
-                             (prop_size_added (encodeTyped  Hashed32) 14)
-              , testProperty "Hashed64: +18 byte (pre-serialized)"
-                             (prop_size_added (encodeTyped  Hashed64) 18)
+      tests = [ testProperty "Untyped:  +1 byte"
+                             (prop_size_added (encodeTyped Untyped)  1)
+              , testProperty "Hashed32: +5 byte"
+                             (prop_size_added (encodeTyped Hashed32) 5)
+              , testProperty "Hashed64: +9 byte"
+                             (prop_size_added (encodeTyped Hashed64) 9)
               ]
 
 
