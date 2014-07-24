@@ -23,3 +23,5 @@ Initial release.
 - Add `Hashed32` type representation with 32 bit, more suitable for short data
   than the previous `Hashed`, which was implicitly 64 bit long. `Hashed64` is
   also available in case the longer hash is needed.
+- Type representations are now automatically cached by `encodeTyped`. If this
+  data is long enough, it is even serialized in advance as well.
