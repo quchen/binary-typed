@@ -137,13 +137,27 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 --   Used to make 'Data.Binary.Typed.encodeTyped' more efficient; the source
 --   there also makes a good usage example.
 preserialize :: TypeInformation -> TypeInformation
-preserialize   c@(Cached'   _) = c
-preserialize   u@(Untyped'   ) = u
-preserialize h32@(Hashed32' _) = h32
-preserialize h64@(Hashed64' _) = h64
-preserialize x | BSL.length encoded > 10*9 = Cached' encoded
-               | otherwise = x
-               where encoded = encode x
+preserialize x@(Cached'   _) = x
+preserialize x@(Untyped'   ) = x
+preserialize x@(Hashed32' _) = x
+preserialize x@(Hashed64' _) = x
+-- Explicit cases for Shown' and Full' so exhaustiveness can be checked when
+-- new constructors are added. (The default pattern of just "x" would do right
+-- now as well, but not provide that.)
+preserialize x@(Shown'  _ _) = preserialize' x
+preserialize x@(Full'     _) = preserialize' x
+
+
+
+-- | Preserializes type information if its encoded byte length is larger than
+--   an arbitrary threshold. Less efficient than 'preserialize' since it
+--   always preserializes and always calculates the encoded version no matter
+--   what.
+preserialize' :: TypeInformation -> TypeInformation
+preserialize' x | BSL.length encoded > 10*9 = Cached' encoded
+                | otherwise = x
+                where encoded = encode x
+
 
 
 -- | Different ways of including/verifying type information of serialized
@@ -185,8 +199,9 @@ data TypeFormat =
         --   * Both the hash and the shown type must match to satisfy the
         --     typechecker.
         --   * Useful type errors ("expected X, received Y"). All types are
-        --     shown (and checked) unqualified though, making @Foo.X@ and
-        --     @Bar.X@ count as equals.
+        --     shown unqualified though, making @Foo.X@ and @Bar.X@ look
+        --     identical in error messages. Remember this when you get a
+        --     seemingly silly error "expected Foo, but given Foo".
       | Shown
 
         -- | Compare the full representation of a data type.
@@ -200,7 +215,8 @@ data TypeFormat =
         --     type.
         --   * Useful type errors ("expected X, received Y"). All types are
         --     shown unqualified though, making @Foo.X@ and @Bar.X@ look
-        --     identical in error messages.
+        --     identical in error messages. Remember this when you get a
+        --     seemingly silly error "expected Foo, but given Foo".
       | Full
 
       deriving (Eq, Ord, Show)
