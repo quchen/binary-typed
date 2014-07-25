@@ -53,8 +53,8 @@ import qualified Data.Digest.Murmur64 as H64
 
 
 -- ^ Type information stored alongside a value to be serialized, so that the
---   recipient can do consistency checks. See 'TypeFormat' for more detailed
---   information on the fields.
+-- recipient can do consistency checks. See 'TypeFormat' for more detailed
+-- information on the fields.
 data TypeInformation = Untyped'
                      | Hashed32'  Hash32
                      | Hashed64'  Hash64
@@ -83,7 +83,7 @@ getFormat (Cached'    bs) = getFormat (decode bs)
 
 
 -- | A hash value of a 'TypeRep'. Currently a 32-bit value created using
---   the MurmurHash2 algorithm.
+-- the MurmurHash2 algorithm.
 newtype Hash32 = Hash32 Word32
       deriving (Eq, Ord, Show, Generic)
 instance Binary Hash32
@@ -91,7 +91,7 @@ instance Binary Hash32
 
 
 -- | A hash value of a 'TypeRep'. Currently a 64-bit value created using
---   the MurmurHash2 algorithm.
+-- the MurmurHash2 algorithm.
 newtype Hash64 = Hash64 Word64
       deriving (Eq, Ord, Show, Generic)
 instance Binary Hash64
@@ -99,7 +99,7 @@ instance Binary Hash64
 
 
 -- | A value suitable to be typechecked using the contained extra type
---   information.
+-- information.
 data Typed a = Typed TypeInformation a
       -- ^ Using this data constructor directly is unsafe, as it allows
       -- construction of ill-typed 'Typed' data. Use the 'typed' smart
@@ -112,8 +112,8 @@ instance Show a => Show (Typed a) where
                                  (show x)
 
 -- | Ensures data is decoded as the appropriate type with high or total
---   confidence (depending on with what 'TypeFormat' the 'Typed' was
---   constructed).
+-- confidence (depending on with what 'TypeFormat' the 'Typed' was
+-- constructed).
 instance (Binary a, Typeable a) => Binary (Typed a) where
       get = do (ty, value) <- get
                either fail return (typecheck (Typed ty value))
@@ -123,19 +123,19 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 
 
 -- | Sometimes it can be beneficial to serialize the type information in
---   advance, so that the maybe costly serialization step does not have to be
---   repeated on every invocation of 'encode'. Preserialization comes at a price
---   though, as the directly contained 'BSL.ByteString'requires its length to
---   be included in the final serialization, yielding a 8-byte overhead for the
---   required 'Data.Int.Int64', and one for the tag of what was serialized
---   ("shown or full?").
+-- advance, so that the maybe costly serialization step does not have to be
+-- repeated on every invocation of 'encode'. Preserialization comes at a price
+-- though, as the directly contained 'BSL.ByteString' requires its length to
+-- be included in the final serialization, yielding a 8-byte overhead for the
+-- required 'Data.Int.Int64', and one for the tag of what was serialized
+-- (\"shown or full?\").
 --
---   This function calculates the serialized version of 'TypeInformation' in
---   cases where the required 8 bytes are negligible (determined by an
---   arbitrary threshold, currently 10*9 bytes).
+-- This function calculates the serialized version of 'TypeInformation' in
+-- cases where the required 9 bytes are negligible (determined by an
+-- arbitrary threshold, currently 10*9 bytes).
 --
---   Used to make 'Data.Binary.Typed.encodeTyped' more efficient; the source
---   there also makes a good usage example.
+-- Used to make 'Data.Binary.Typed.encodeTyped' more efficient; the source
+-- there also makes a good usage example.
 preserialize :: TypeInformation -> TypeInformation
 preserialize x@(Cached'   _) = x
 preserialize x@(Untyped'   ) = x
@@ -150,9 +150,9 @@ preserialize x@(Full'     _) = preserialize' x
 
 
 -- | Preserializes type information if its encoded byte length is larger than
---   an arbitrary threshold. Less efficient than 'preserialize' since it
---   always preserializes and always calculates the encoded version no matter
---   what.
+-- an arbitrary threshold. Less efficient than 'preserialize' since it
+-- always preserializes and always calculates the encoded version no matter
+-- what.
 preserialize' :: TypeInformation -> TypeInformation
 preserialize' x | BSL.length encoded > 10*9 = Cached' encoded
                 | otherwise = x
@@ -171,52 +171,57 @@ data TypeFormat =
         Untyped
 
         -- | Compare types by their hash values (using the MurmurHash2
-        --   algorithm).
+        -- algorithm).
         --
-        --   * Requires five bytes more compared to using 'Binary' directly for
-        --     the type information (one to tag as 'Hashed32', four for the
-        --     hash value)
-        --   * Subject to false positive due to hash collisions, although in
-        --     practice this should almost never happen.
-        --   * Type errors cannot tell the provided type ("Expected X, received
-        --     type with hash H")
+        -- * Requires five bytes more compared to using 'Binary' directly for
+        --   the type information (one to tag as 'Hashed32', four for the
+        --   hash value)
+        --
+        -- * Subject to false positive due to hash collisions, although in
+        --   practice this should almost never happen.
+        --
+        -- * Type errors cannot tell the provided type ("Expected X, received
+        --   type with hash H")
       | Hashed32
 
         -- | Like 'Hashed32', but uses a 64-bit hash value.
         --
-        --   * Requires nine bytes more compared to using 'Binary'.
-        --   * Hash collisions are even less likely to occur than with
-        --     'Hashed32'.
+        -- * Requires nine bytes more compared to using 'Binary'.
+        --
+        -- * Hash collisions are even less likely to occur than with
+        --   'Hashed32'.
       | Hashed64
 
         -- | Compare 'String' representation of types, obtained by calling
-        --   'show' on the 'TypeRep', and also include a hash value
-        --   (like 'Hashed32'). The former is mostly for readable error
-        --   messages, the latter provides better collision resistance.
+        -- 'show' on the 'TypeRep', and also include a hash value
+        -- (like 'Hashed32'). The former is mostly for readable error
+        -- messages, the latter provides better collision resistance.
         --
-        --   * Data size larger than 'Hashed32', but usually smaller than
-        --     'Full'.
-        --   * Both the hash and the shown type must match to satisfy the
-        --     typechecker.
-        --   * Useful type errors ("expected X, received Y"). All types are
-        --     shown unqualified though, making @Foo.X@ and @Bar.X@ look
-        --     identical in error messages. Remember this when you get a
-        --     seemingly silly error "expected Foo, but given Foo".
+        -- * Data size larger than 'Hashed32', but usually smaller than
+        --   'Full'.
+        --
+        -- * Both the hash and the shown type must match to satisfy the
+        --   typechecker.
+        --
+        -- * Useful type errors ("expected X, received Y"). All types are
+        --   shown unqualified though, making @Foo.X@ and @Bar.X@ look
+        --   identical in error messages. Remember this when you get a
+        --   seemingly silly error "expected Foo, but given Foo".
       | Shown
 
         -- | Compare the full representation of a data type.
         --
-        --   * More verbose than 'Hashed' and 'Shown'. As a rule of thumb,
-        --     transmitted data is roughly the same as 'Shown', but all names
-        --     are fully qualified (package, module, type name).
-        --   * Correct comparison (no false positives). An semi-exception here
-        --     is when types change between package versions:
-        --     @package-1.0 Foo.X@ and @package-1.1 Foo.X@ count as the same
-        --     type.
-        --   * Useful type errors ("expected X, received Y"). All types are
-        --     shown unqualified though, making @Foo.X@ and @Bar.X@ look
-        --     identical in error messages. Remember this when you get a
-        --     seemingly silly error "expected Foo, but given Foo".
+        -- * More verbose than 'Hashed' and 'Shown'. As a rule of thumb,
+        --   transmitted data is roughly the same as 'Shown', but all names
+        --   are fully qualified (package, module, type name).
+        -- * Correct comparison (no false positives). An semi-exception here
+        --   is when types change between package versions:
+        --   @package-1.0 Foo.X@ and @package-1.1 Foo.X@ count as the same
+        --   type.
+        -- * Useful type errors ("expected X, received Y"). All types are
+        --   shown unqualified though, making @Foo.X@ and @Bar.X@ look
+        --   identical in error messages. Remember this when you get a
+        --   seemingly silly error "expected Foo, but given Foo".
       | Full
 
       deriving (Eq, Ord, Show)

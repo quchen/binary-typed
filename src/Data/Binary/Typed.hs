@@ -47,24 +47,24 @@ import           Data.Binary.Typed.Internal
 
 
 -- | Modify the value contained in a 'Typed', keeping the same sort of type
---   representation. In other words, calling 'mapTyped' on something that is
---   typed using 'Hashed' will yield a 'Hashed' value again.
+-- representation. In other words, calling 'mapTyped' on something that is
+-- typed using 'Hashed' will yield a 'Hashed' value again.
 --
---   Note: this destroys 'precache'd information, so that values have to be
---   'precache'd again if desired. As a consequence, @'mapTyped' 'id'@
---   can be used to un-'precache' values.
+-- Note: this destroys 'precache'd information, so that values have to be
+-- 'precache'd again if desired. As a consequence, @'mapTyped' 'id'@
+-- can be used to un-'precache' values.
 mapTyped :: Typeable b => (a -> b) -> Typed a -> Typed b
 mapTyped f (Typed ty x) = typed (getFormat ty) (f x)
 
 
 
 -- | Change the value contained in a 'Typed', leaving the type representation
---   unchanged. This can be useful to avoid recomputation of the included type
---   information, and can improve performance significantly if many individual
---   messages are serialized.
+-- unchanged. This can be useful to avoid recomputation of the included type
+-- information, and can improve performance significantly if many individual
+-- messages are serialized.
 --
---   Can be seen as a more efficient 'mapTyped' in case @f@ is an endomorphism
---   (i.e. has type @a -> a@).
+-- Can be seen as a more efficient 'mapTyped' in case @f@ is an endomorphism
+-- (i.e. has type @a -> a@).
 reValue :: (a -> a) -> Typed a -> Typed a
 reValue f (Typed ty x) = Typed ty (f x)
 
@@ -113,7 +113,7 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 
 
 -- | Decode a typed value, throwing an error at runtime on failure.
---   Typed cousin of 'Data.Binary.decode'.
+-- Typed cousin of 'Data.Binary.decode'.
 --
 -- @
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
@@ -132,10 +132,11 @@ unsafeDecodeTyped = erase . decode
 
 
 -- | Safely decode data, yielding 'Either' an error 'String' or the value,
---   along with meta-information of the consumed binary data.
+-- along with meta-information of the consumed binary data.
 --
---   * Typed cousin of 'Data.Binary.decodeOrFail'.
---   * Like 'decodeTyped', but with additional data.
+-- * Typed cousin of 'Data.Binary.decodeOrFail'.
+--
+-- * Like 'decodeTyped', but with additional data.
 decodeTypedOrFail :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> Either (BSL.ByteString, ByteOffset, String)
@@ -147,7 +148,7 @@ decodeTypedOrFail input = case decodeOrFail input of
 
 
 -- | Safely decode data, yielding 'Either' an error 'String' or the value.
---   Equivalent to 'decodeTypedOrFail' stripped of the non-essential data.
+-- Equivalent to 'decodeTypedOrFail' stripped of the non-essential data.
 --
 -- @
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
