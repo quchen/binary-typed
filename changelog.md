@@ -25,3 +25,8 @@ Initial release.
   also available in case the longer hash is needed.
 - Type representations are now automatically cached by `encodeTyped`. If this
   data is long enough, it is even serialized in advance as well.
+
+### 0.2.0.1
+
+- Fix whitespace in docs to make the docs build properly on Hackage, which
+  presumably has an older Haddock version
