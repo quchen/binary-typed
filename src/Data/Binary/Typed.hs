@@ -3,6 +3,9 @@
 --
 --   For usage information, see the "Data.Binary.Typed.Tutorial" module.
 
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_HADDOCK show-extensions #-}
+
 module Data.Binary.Typed (
 
       -- * Core functions
@@ -36,7 +39,7 @@ module Data.Binary.Typed (
 
 import qualified Data.ByteString.Lazy as BSL
 
-import           Data.Typeable (Typeable, typeOf)
+import           Data.Typeable (Typeable, typeRep, Proxy(..))
 
 import           Data.Binary
 import           Data.Binary.Get (ByteOffset)
@@ -90,13 +93,14 @@ reType format (Typed _ty x) = typed format x
 -- information related calculations in advance and shares the results between
 -- future invocations of it, making it much more efficient to serialize many
 -- values of the same type.
-encodeTyped :: (Typeable a, Binary a)
+encodeTyped :: forall a.
+               (Typeable a, Binary a)
             => TypeFormat
             -> a
             -> BSL.ByteString
-encodeTyped format = \x ->
-      let ty = preserialize (makeTypeInformation format (typeOf x))
-      in  encode (Typed ty x)
+encodeTyped format = \x -> encode (Typed typeInfo x)
+      where typeInfo = preserialize (makeTypeInformation format typerep)
+            typerep = typeRep (Proxy :: Proxy a)
 
 
 
@@ -108,7 +112,7 @@ encodeTypedLike ::
 encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 
 {-# DEPRECATED encodeTypedLike
-               "'encodeTyped' now caches automatically for all types" #-}
+               "'encodeTyped' now caches automatically for all types. Will be removed in 0.3." #-}
 
 
 

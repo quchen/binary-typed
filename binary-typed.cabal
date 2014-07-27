@@ -1,5 +1,5 @@
 name:          binary-typed
-version:       0.2.0.2
+version:       0.2.1.0
 synopsis:      Type-safe binary serialization
 Description:
       `Binary` serialization tagged with type information, allowing for
@@ -14,11 +14,10 @@ Description:
       * Error messages can provide details on type errors at the cost of
         longer message lengths to include the necessary information.
       .
-      * Serialization computationally reasonably efficient, as type
-        representations can be precached and don't need to be recalculated on
-        each serialization. Performance obviously depends a lot on the involved
-        types and serialization methods; an example benchmark is shown in the
-        picture below.
+      * Serialization computationally almost as efficient as "Data.Binary" when
+        sharing type representations; decoding however is slower.
+        These values obviously depend a lot on the involved data and its type;
+        an example benchmark is shown in the picture below.
       .
       * No depencency on @Internal@ modules of other libraries, and a very small
         dependency footprint in general.
@@ -29,7 +28,7 @@ Description:
       type @Either (Char, Int) (Either String (Maybe Integer))@ benchmarked
       using the @Hashed64@ type representation:
       .
-      <<http://i.imgur.com/JzhYqGZ.png>>
+      <<http://i.imgur.com/Jsiaokx.png>>
       .
       <doc/bench-overview.png (local copy)>
 homepage:           https://github.com/quchen/binary-typed
