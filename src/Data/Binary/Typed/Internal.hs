@@ -57,11 +57,11 @@ import qualified Data.Digest.Murmur64 as H64
 -- recipient can do consistency checks. See 'TypeFormat' for more detailed
 -- information on the fields.
 data TypeInformation = Untyped'
-                     | Hashed32'  Hash32
-                     | Hashed64'  Hash64
-                     | Shown'     Hash32 String
-                     | Full'      TypeRep
-                     | Cached'    BSL.ByteString
+                     | Hashed32' Hash32
+                     | Hashed64' Hash64
+                     | Shown'    Hash32 String
+                     | Full'     TypeRep
+                     | Cached'   BSL.ByteString
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation
@@ -74,12 +74,12 @@ instance Binary TypeInformation
 -- well-formed. In the public API, this is safe to do, since only well-typed
 -- 'Typed' values can be created in the first place.
 getFormat :: TypeInformation -> TypeFormat
-getFormat (Untyped'   {}) = Untyped
-getFormat (Hashed32'  {}) = Hashed32
-getFormat (Hashed64'  {}) = Hashed64
-getFormat (Shown'     {}) = Shown
-getFormat (Full'      {}) = Full
-getFormat (Cached'    bs) = getFormat (decode bs)
+getFormat (Untyped'  {}) = Untyped
+getFormat (Hashed32' {}) = Hashed32
+getFormat (Hashed64' {}) = Hashed64
+getFormat (Shown'    {}) = Shown
+getFormat (Full'     {}) = Full
+getFormat (Cached'   bs) = getFormat (decode bs)
 
 
 
@@ -138,15 +138,15 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 -- Used to make 'Data.Binary.Typed.encodeTyped' more efficient; the source
 -- there also makes a good usage example.
 preserialize :: TypeInformation -> TypeInformation
-preserialize x@(Cached'   _) = x
-preserialize x@(Untyped'   ) = x
-preserialize x@(Hashed32' _) = x
-preserialize x@(Hashed64' _) = x
+preserialize x@(Cached'   {}) = x
+preserialize x@(Untyped'  {}) = x
+preserialize x@(Hashed32' {}) = x
+preserialize x@(Hashed64' {}) = x
 -- Explicit cases for Shown' and Full' so exhaustiveness can be checked when
 -- new constructors are added. (The default pattern of just "x" would do right
 -- now as well, but not provide that.)
-preserialize x@(Shown'  _ _) = preserialize' x
-preserialize x@(Full'     _) = preserialize' x
+preserialize x@(Shown'    {}) = preserialize' x
+preserialize x@(Full'     {}) = preserialize' x
 
 
 
@@ -256,11 +256,11 @@ typed format x = Typed (makeTypeInformation format (typeOf x)) x
 --   a 'Ty.TypeRep'.
 makeTypeInformation :: TypeFormat -> Ty.TypeRep -> TypeInformation
 makeTypeInformation format ty = case format of
-      Untyped   -> Untyped'
-      Hashed32  -> Hashed32'  (hashType32     ty)
-      Hashed64  -> Hashed64'  (hashType64     ty)
-      Shown     -> Shown'     (hashType32     ty) (show ty)
-      Full      -> Full'      (stripTypeRep   ty)
+      Untyped  -> Untyped'
+      Hashed32 -> Hashed32'  (hashType32   ty)
+      Hashed64 -> Hashed64'  (hashType64   ty)
+      Shown    -> Shown'     (hashType32   ty) (show ty)
+      Full     -> Full'      (stripTypeRep ty)
 
 
 
@@ -285,9 +285,9 @@ erase (Typed _ty value) = value
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
       Cached' cache -> decode' cache >>= \ty' -> typecheck (Typed ty' x)
-      Full'   full      | exFull /= full     -> Left (fullError full)
-      Hashed32' hash32  | exHash32 /= hash32 -> Left (hashError exHash32 hash32)
-      Hashed64' hash64  | exHash64 /= hash64 -> Left (hashError exHash64 hash64)
+      Full'   full       | exFull /= full     -> Left (fullError full)
+      Hashed32' hash32   | exHash32 /= hash32 -> Left (hashError exHash32 hash32)
+      Hashed64' hash64   | exHash64 /= hash64 -> Left (hashError exHash64 hash64)
       Shown'  hash32 str | (exHash32, exShow) /= (hash32, str)
                                              -> Left (shownError hash32 str)
       _no_type_error -> Right ty

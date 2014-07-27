@@ -19,7 +19,7 @@ a couple of key differences:
 - Error messages can provide details on type errors at the cost of
   longer message lengths to include the necessary information.
 
-- Serialization computationally almost as efficient as "Data.Binary" when
+- Serialization computationally almost as efficient as `Data.Binary` when
   sharing type representations; decoding however is slower.
   These values obviously depend a lot on the involved data and its type;
   an example benchmark is shown in the picture below.
