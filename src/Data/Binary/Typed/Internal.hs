@@ -168,6 +168,10 @@ data TypeFormat =
         --
         --   * Requires one byte more compared to using 'Binary' directly
         --     (to tag the data as untyped, required for the decoding step).
+        --
+        --   * Encoding and decoding require negligible amount of additional
+        --     computational cost compared to direct (intrinsically untyped)
+        --     'Binary'.
         Untyped
 
         -- | Compare types by their hash values (using the MurmurHash2
@@ -182,6 +186,8 @@ data TypeFormat =
         --
         -- * Type errors cannot tell the provided type ("Expected X, received
         --   type with hash H")
+        --
+        -- * Computational cost similar to 'Hashed64'.
       | Hashed32
 
         -- | Like 'Hashed32', but uses a 64-bit hash value.
@@ -190,6 +196,8 @@ data TypeFormat =
         --
         -- * Hash collisions are even less likely to occur than with
         --   'Hashed32'.
+        --
+        -- * Computational cost similar to 'Hashed32'.
       | Hashed64
 
         -- | Compare 'String' representation of types, obtained by calling
