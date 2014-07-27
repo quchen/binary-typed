@@ -23,6 +23,10 @@ value :: Complicated
 value = Right (Left ("Lorem ipsum dolor sit amet, consectetur adipiscing elit.\
                      \ Nam vitae lacinia tellus. Maecenas posuere."))
 
+-- | Pre-define encoding function so sharing can work properly
+encodeTypedEncoder :: Complicated -> ByteString
+encodeTypedEncoder = encodeTyped mode
+
 -- Precalcualte encoded values for decoding benchmark
 value_encodedBinary, value_encodedTyped :: ByteString
 value_encodedBinary = encode value
@@ -32,7 +36,11 @@ value_encodedTyped  = encodeTyped mode value
 
 main :: IO ()
 main = do
-      evaluate (value `deepseq` ())
+      evaluate (value               `deepseq` ())
+      evaluate (value_encodedBinary `deepseq` ())
+      evaluate (value_encodedTyped  `deepseq` ())
+      evaluate (encodeTypedEncoder      `seq` ())
+
       defaultMain [ bgroup "encode"        bench_encode
                   , bgroup "decode"        bench_decode
                   , bgroup "encode+decode" bench_both
@@ -58,9 +66,7 @@ bench_encode_binaryOnly = bench d (nf f value)
 bench_encode_typed :: Benchmark
 bench_encode_typed = bench d (nf f value)
       where d = "Typed with " ++ show mode
-            f = encodeTyped mode
-
-
+            f = encodeTypedEncoder
 
 
 

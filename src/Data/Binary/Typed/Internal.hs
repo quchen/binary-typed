@@ -105,7 +105,7 @@ data Typed a = Typed TypeInformation a
       -- construction of ill-typed 'Typed' data. Use the 'typed' smart
       -- constructor unless you really need 'Typed'.
 
--- | "typed \<format\> \<value\>"
+-- | \"typed \<format\> \<value\>\"
 instance Show a => Show (Typed a) where
       show (Typed ty x) = printf "typed %s (%s)"
                                  (show (getFormat ty))

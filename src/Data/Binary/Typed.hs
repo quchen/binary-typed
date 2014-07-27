@@ -124,6 +124,7 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 -- -- (Descriptive) runtime error
 -- 'unsafeDecodeTyped' encoded :: ('Char', 'Int', 'Double')
 -- @
+--
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
@@ -159,6 +160,7 @@ decodeTypedOrFail input = case decodeOrFail input of
 -- -- Left "Type error: expected (Char, Int, Double), got (String, Int, Double)"
 -- 'decodeTyped' encoded :: 'Either' 'String' ('Char', 'Int', 'Double')
 -- @
+--
 decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a

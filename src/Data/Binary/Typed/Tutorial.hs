@@ -117,21 +117,30 @@ import Data.Binary.Typed.Internal
 -- The core definitions in "Data.Binary.Typed" are:
 --
 --   * 'Typed' (the main type)
+--
 --   * 'typed' (construct 'Typed' values)
+--
 --   * 'TypeFormat' (a helper type for 'typed')
+--
 --   * 'erase' (deconstruct 'Typed' vales)
 --
 -- In addition to those, a couple of useful helper functions with more efficient
 -- implementation than what the core definitions could offer:
 --
 --   * 'mapTyped' (change values contained in 'Typed's)
+--
 --   * 'reValue' (change value, but don't recompute type representation)
+--
 --   * 'reType' (change type representation, but keep value)
+--
 --   * 'preserialize' (compute serialized type representation and cache it, useful as an optimization)
 --
 -- Lastly, there are a number of encoding/decoding functions:
 --
 --   * 'encodeTyped' (pack in 'Typed' and then 'encode', but more efficient)
+--
 --   * 'decodeTyped' (decode 'Typed' 'Data.ByteString.Lazy.ByteString' to @'Either' 'String' a@)
+--
 --   * 'decodeTypedOrFail' (like 'decodeTyped', but with more meta information)
+--
 --   * 'unsafeDecodeTyped' (which throws a runtime error on type mismatch)

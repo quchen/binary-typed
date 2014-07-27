@@ -30,3 +30,10 @@ Initial release.
 
 - Fix whitespace in docs to make the docs build properly on Hackage, which
   presumably has an older Haddock version
+
+### 0.2.0.2
+
+- Pre-calculate certain functions in the benchmarks so they can be properly
+  shared among invocations
+- Remove incorrect remark (from an earlier version) in the readme/.cabal about
+  encoding being almost identical in performance to direct `Binary`
