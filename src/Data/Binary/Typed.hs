@@ -138,6 +138,7 @@ unsafeDecodeTyped = erase . decode
 -- * Typed cousin of 'Data.Binary.decodeOrFail'.
 --
 -- * Like 'decodeTyped', but with additional data.
+--
 decodeTypedOrFail :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> Either (BSL.ByteString, ByteOffset, String)
