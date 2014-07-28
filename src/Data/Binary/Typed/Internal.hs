@@ -13,6 +13,7 @@ module Data.Binary.Typed.Internal (
         Typed(..)
       , TypeInformation(..)
       , Hash5(..)
+      , mkHash5
       , Hash32(..)
       , Hash64(..)
       , typed
@@ -92,13 +93,20 @@ instance Binary TypeInformation where
                   (1, hash) -> return (Hashed5' hash)
                   _ -> fail ("Invalid TypeInformation (tag: " ++ show (hashed5Split n) ++ ")")
 
+
+
 -- | Split a 'Word8' into the last 3 bit (used to tag the constructor) and
 -- the first 5 (data payload). Used by the 'Binary' instance of
 -- 'TypeInformation'.
 hashed5Split :: Word8 -> (Word8, Hash5)
-hashed5Split x = (tag, Hash5 hash) where
-      hash = x .&. 0xF8 -- = 11111000
-      tag  = x .&. 0x7  -- = 00000111
+hashed5Split x = let hash = mkHash5 x
+                     tag  = getHashed5Tag x
+                 in  (tag, hash)
+
+
+
+getHashed5Tag :: Word8 -> Word8
+getHashed5Tag = (.&. 0x7) -- = 00000111
 
 
 
@@ -130,6 +138,12 @@ getFormat (Cached'   bs) = getFormat (decode bs)
 -- serialization is part of the 'TypeInformation' 'Binary' class exclusively.
 newtype Hash5 = Hash5 Word8
       deriving (Eq, Ord, Show)
+
+-- | Smart constructor for 'Hash5' values. Makes sure the rightmost three bits
+-- are not set by applying a bit mask to the input.
+mkHash5 :: Integral a => a -> Hash5
+mkHash5 x = Hash5 (fromIntegral x .&. 0xF8)
+                                    -- = 11111000
 
 
 
@@ -349,11 +363,12 @@ erase (Typed _ty value) = value
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
       Cached' cache -> decode' cache >>= \ty' -> typecheck (Typed ty' x)
-      Full'   full       | exFull /= full     -> Left (fullError full)
+      Full'     full     | exFull /= full     -> Left (fullError full)
+      Hashed5'  hash5    | exHash5 /= hash5   -> Left (hashError exHash5  hash5)
       Hashed32' hash32   | exHash32 /= hash32 -> Left (hashError exHash32 hash32)
       Hashed64' hash64   | exHash64 /= hash64 -> Left (hashError exHash64 hash64)
       Shown'  hash32 str | (exHash32, exShow) /= (hash32, str)
-                                             -> Left (shownError hash32 str)
+                                              -> Left (shownError hash32 str)
       _no_type_error -> Right ty
 
 
@@ -361,6 +376,7 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
 
       -- ex = expected
       exType   = typeOf x
+      exHash5  = hashType5    exType
       exHash32 = hashType32   exType
       exHash64 = hashType64   exType
       exShow   = show         exType
@@ -384,10 +400,7 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
 
 -- | Hash a 'Ty.TypeRep' to a 5-bit digest.
 hashType5 :: Ty.TypeRep -> Hash5
-hashType5 = Hash5 . toHash5 . H32.asWord32 . H32.hash32 . stripTypeRep
-      where toHash5 x = fromIntegral x .&. 248 -- = 11111000
-                                       -- Clear three rightmost bits, as
-                                       -- required by any 'Hash5'
+hashType5 = mkHash5 . H32.asWord32 . H32.hash32 . stripTypeRep
 
 
 
