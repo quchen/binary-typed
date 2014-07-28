@@ -155,6 +155,23 @@ decodeTypedOrFail input = case decodeOrFail input of
 
 
 
+decodeTypedOrFail' :: (Typeable a, Binary a)
+                   => BSL.ByteString
+                   -> Either (BSL.ByteString, ByteOffset, String)
+                             (BSL.ByteString, ByteOffset, a)
+decodeTypedOrFail' input = do
+      ty <- case decodeOrFail input of
+            Left (_rest, _offset, err) -> Left err
+            Right (rest, _offset, ty') -> return ty'
+      where
+            exTyperep = typeRep (Proxy :: Proxy a)
+
+            exHash5  = encode (makeTypeInformation Hashed5  exTyperep)
+            exHash32 = encode (makeTypeInformation Hashed32 exTyperep)
+            exHash64 = encode (makeTypeInformation Hashed64 exTyperep)
+
+
+
 -- | Safely decode data, yielding 'Either' an error 'String' or the value.
 -- Equivalent to 'decodeTypedOrFail' stripped of the non-essential data.
 --

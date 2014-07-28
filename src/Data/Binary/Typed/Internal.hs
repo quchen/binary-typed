@@ -181,10 +181,15 @@ instance Show a => Show (Typed a) where
 -- confidence (depending on with what 'TypeFormat' the 'Typed' was
 -- constructed).
 instance (Binary a, Typeable a) => Binary (Typed a) where
-      get = do (ty, value) <- get
+      get = do -- Explicitly get both values instead of a (ty,value) tuple
+               -- in case Binary changes in the future. This ensures caching
+               -- in 'decodeTyped' can rely on the two values coming in
+               -- in this particular way.
+               ty    <- get
+               value <- get
                either fail return (typecheck (Typed ty value))
                -- NB: 'fail' is safe in Get Monad
-      put (Typed ty value) = put (ty, value)
+      put (Typed ty value) = put ty >> put value
 
 
 
