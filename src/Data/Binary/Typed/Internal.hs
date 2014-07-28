@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_HADDOCK show-extensions #-}
 
 
@@ -11,6 +12,7 @@ module Data.Binary.Typed.Internal (
       -- * 'Typed'
         Typed(..)
       , TypeInformation(..)
+      , Hash5(..)
       , Hash32(..)
       , Hash64(..)
       , typed
@@ -25,6 +27,8 @@ module Data.Binary.Typed.Internal (
       , TypeRep(..)
       , stripTypeRep
       , unStripTypeRep
+      , hashType5
+      , hashed5Split
       , hashType32
       , hashType64
 
@@ -39,6 +43,8 @@ module Data.Binary.Typed.Internal (
 
 import           GHC.Generics
 import           Text.Printf
+import           Data.Bits ((.&.), (.|.))
+import           Control.Applicative
 -- import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -57,6 +63,7 @@ import qualified Data.Digest.Murmur64 as H64
 -- recipient can do consistency checks. See 'TypeFormat' for more detailed
 -- information on the fields.
 data TypeInformation = Untyped'
+                     | Hashed5'  Hash5
                      | Hashed32' Hash32
                      | Hashed64' Hash64
                      | Shown'    Hash32 String
@@ -64,7 +71,34 @@ data TypeInformation = Untyped'
                      | Cached'   BSL.ByteString
                      deriving (Eq, Ord, Show, Generic)
 
-instance Binary TypeInformation
+instance Binary TypeInformation where
+      put Untyped'             = putWord8 0
+      put (Hashed5' (Hash5 x)) = putWord8 (x .|. 1) -- See 'Hash5' for info
+      put (Hashed32' x)        = putWord8 2 >> put x
+      put (Hashed64' x)        = putWord8 3 >> put x
+      put (Shown'    x y)      = putWord8 4 >> put x >> put y
+      put (Full'     x)        = putWord8 5 >> put x
+      put (Cached'   x)        = putWord8 6 >> put x
+
+      get = getWord8 >>= \case
+            0 -> return Untyped'
+            -- "1" case handled at the end
+            2 -> fmap   Hashed32' get
+            3 -> fmap   Hashed64' get
+            4 -> liftA2 Shown'    get get
+            5 -> fmap   Full'     get
+            6 -> fmap   Cached'   get
+            n -> case hashed5Split n of
+                  (1, hash) -> return (Hashed5' hash)
+                  _ -> fail ("Invalid TypeInformation (tag: " ++ show (hashed5Split n) ++ ")")
+
+-- | Split a 'Word8' into the last 3 bit (used to tag the constructor) and
+-- the first 5 (data payload). Used by the 'Binary' instance of
+-- 'TypeInformation'.
+hashed5Split :: Word8 -> (Word8, Hash5)
+hashed5Split x = (tag, Hash5 hash) where
+      hash = x .&. 0xF8 -- = 11111000
+      tag  = x .&. 0x7  -- = 00000111
 
 
 
@@ -75,11 +109,27 @@ instance Binary TypeInformation
 -- 'Typed' values can be created in the first place.
 getFormat :: TypeInformation -> TypeFormat
 getFormat (Untyped'  {}) = Untyped
+getFormat (Hashed5'  {}) = Hashed5
 getFormat (Hashed32' {}) = Hashed32
 getFormat (Hashed64' {}) = Hashed64
 getFormat (Shown'    {}) = Shown
 getFormat (Full'     {}) = Full
 getFormat (Cached'   bs) = getFormat (decode bs)
+
+
+
+-- | A hash value of a 'TypeRep'. Currently a 5-bit value created using
+-- the MurmurHash2 algorithm.
+--
+-- Since 'TypeInformation' needs 3 bit to store the sort of the
+-- 'TypeInformation', the remaining 5 bit per 'Word8' can be used to store a
+-- hash value at no additional space cost. For this reason, it is important that
+-- the three rightmost bits of any 'Hashed5' are set to zero.
+--
+-- This type intentionally doesn't have a 'Binary' instance, since its
+-- serialization is part of the 'TypeInformation' 'Binary' class exclusively.
+newtype Hash5 = Hash5 Word8
+      deriving (Eq, Ord, Show)
 
 
 
@@ -140,6 +190,7 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 preserialize :: TypeInformation -> TypeInformation
 preserialize x@(Cached'   {}) = x
 preserialize x@(Untyped'  {}) = x
+preserialize x@(Hashed5'  {}) = x
 preserialize x@(Hashed32' {}) = x
 preserialize x@(Hashed64' {}) = x
 -- Explicit cases for Shown' and Full' so exhaustiveness can be checked when
@@ -174,6 +225,18 @@ data TypeFormat =
         --     computational cost compared to direct (intrinsically untyped)
         --     'Binary'.
         Untyped
+
+        -- | Like 'Hashed32', but uses a 5-bit hash value.
+        --
+        -- * Requires the same amount of space as 'Untyped', i.e. the only
+        --   overhead compared to it is the computational cost to calculate
+        --   the hash, which is almost identical to the one of 'Hashed32'.
+        --
+        -- * Collisions occur with a probability of 1/2^5 = 1/32. For this
+        --   reason, this format is only recommended when minimal data size
+        --   is top priority.
+        --
+      | Hashed5
 
         -- | Compare types by their hash values (using the MurmurHash2
         -- algorithm).
@@ -257,6 +320,7 @@ typed format x = Typed (makeTypeInformation format (typeOf x)) x
 makeTypeInformation :: TypeFormat -> Ty.TypeRep -> TypeInformation
 makeTypeInformation format ty = case format of
       Untyped  -> Untyped'
+      Hashed5  -> Hashed5'   (hashType5    ty)
       Hashed32 -> Hashed32'  (hashType32   ty)
       Hashed64 -> Hashed64'  (hashType64   ty)
       Shown    -> Shown'     (hashType32   ty) (show ty)
@@ -315,6 +379,15 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
       decode' bs = case decodeOrFail bs of
             Left  (_,_,err) -> Left  ("Cache error! " ++ err)
             Right (_,_,val) -> Right val
+
+
+
+-- | Hash a 'Ty.TypeRep' to a 5-bit digest.
+hashType5 :: Ty.TypeRep -> Hash5
+hashType5 = Hash5 . toHash5 . H32.asWord32 . H32.hash32 . stripTypeRep
+      where toHash5 x = fromIntegral x .&. 248 -- = 11111000
+                                       -- Clear three rightmost bits, as
+                                       -- required by any 'Hash5'
 
 
 

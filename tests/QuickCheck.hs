@@ -7,8 +7,9 @@ module QuickCheck (props) where
 import Control.Applicative
 import Data.Typeable (Typeable)
 import Data.Int
+import Data.Bits ((.&.), (.|.))
 
-import Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy as BSL
 import Data.Binary
 import Data.Binary.Typed
 import Data.Binary.Typed.Internal
@@ -58,6 +59,7 @@ prop_inverses_int = tree tests where
            . testGroup "Int"
 
       tests = [ testProperty "Untyped"  (prop Untyped)
+              , testProperty "Hashed5"  (prop Hashed5)
               , testProperty "Hashed32" (prop Hashed32)
               , testProperty "Hashed64" (prop Hashed64)
               , testProperty "Shown"    (prop Shown)
@@ -77,6 +79,7 @@ prop_inverses_string = tree tests where
            . testGroup "String"
 
       tests = [ testProperty "Untyped"  (prop Untyped)
+              , testProperty "Hashed5"  (prop Hashed5)
               , testProperty "Hashed32" (prop Hashed32)
               , testProperty "Hashed64" (prop Hashed64)
               , testProperty "Shown"    (prop Shown)
@@ -158,7 +161,7 @@ instance (Arbitrary a, Typeable a) => Arbitrary (Typed a) where
                   preserializeTyped (Typed ty x) = Typed (preserialize ty) x
 
 instance Arbitrary TypeFormat where
-      arbitrary = elements [Untyped, Hashed32, Hashed64, Shown, Full]
+      arbitrary = elements [Untyped, Hashed5, Hashed32, Hashed64, Shown, Full]
 
 
 
@@ -181,6 +184,11 @@ prop_internal = tree tests where
                              prop_stripTyCon_inverses
               , testProperty "getFormat extracts format correctly"
                              prop_getFormat
+              , localOption (QuickCheckMaxSize 10)
+                            (testProperty "Hash5 has 3 rightmost bits zero"
+                                          prop_hash5_zero)
+              , testProperty "hash5Split invertible"
+                             prop_hash5Split_invertible
               ]
 
 
@@ -194,6 +202,21 @@ prop_stripTypeRep_inverses x = (stripTypeRep . unStripTypeRep) x == x
 
 prop_stripTyCon_inverses :: TyCon -> Bool
 prop_stripTyCon_inverses x = (stripTyCon . unStripTyCon) x == x
+
+-- | Does every hashed 'TypeRep' result in a 'Hash5' that has its three
+-- rightmost bits zero?
+prop_hash5_zero :: TypeRep -> Bool
+prop_hash5_zero x = let Hash5 x' = hashType5 (unStripTypeRep x)
+                    in  7 Data.Bits..&. x' == 0
+                        -- 7 = 00000111
+
+-- | Splitting and putting the numbers together again should be the identity
+prop_hash5Split_invertible :: Word8 -> Bool
+prop_hash5Split_invertible x =
+      let (tag, Hash5 hash) = hashed5Split x
+      in  x == tag .|. hash
+
+
 
 
 
@@ -233,6 +256,8 @@ prop_sizes = tree tests where
 
       tests = [ testProperty "Untyped:  +1 byte"
                              (prop_size_added (encodeTyped Untyped)  1)
+              , testProperty "Hashed5:  +1 byte"
+                             (prop_size_added (encodeTyped Hashed5)  1)
               , testProperty "Hashed32: +5 byte"
                              (prop_size_added (encodeTyped Hashed32) 5)
               , testProperty "Hashed64: +9 byte"

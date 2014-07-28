@@ -36,3 +36,12 @@ Initial release.
 - Fix sharing not working at all (bad `encodeTyped` implementation)
 - Pre-calculate certain functions in the benchmarks so they can be properly
   shared among invocations
+
+
+
+## 0.3
+
+### 0.3.0.0
+
+- Add `Hashed5` type representation that has no size overhead compared to
+  `Untyped`
