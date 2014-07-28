@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# OPTIONS_HADDOCK show-extensions #-}
 
 
 

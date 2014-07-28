@@ -4,7 +4,6 @@
 --   For usage information, see the "Data.Binary.Typed.Tutorial" module.
 
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_HADDOCK show-extensions #-}
 
 module Data.Binary.Typed (
 

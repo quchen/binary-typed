@@ -36,3 +36,8 @@ Initial release.
 - Fix sharing not working at all (bad `encodeTyped` implementation)
 - Pre-calculate certain functions in the benchmarks so they can be properly
   shared among invocations
+
+### 0.3.0.0
+
+- Remove "OPTIONS_HADDOCK" pragmas since Hackage has an old Haddock version
+  that doesn't support it
