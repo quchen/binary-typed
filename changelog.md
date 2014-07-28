@@ -37,7 +37,11 @@ Initial release.
 - Pre-calculate certain functions in the benchmarks so they can be properly
   shared among invocations
 
-### 0.3.0.0
 
+
+## 0.3
+
+- Add `Hashed5` type representation that has no size overhead compared to
+  `Untyped`
 - Remove "OPTIONS_HADDOCK" pragmas since Hackage has an old Haddock version
   that doesn't support it

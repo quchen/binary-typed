@@ -1,5 +1,5 @@
 name:          binary-typed
-version:       0.2.1.0
+version:       0.3
 synopsis:      Type-safe binary serialization
 Description:
       `Binary` serialization tagged with type information, allowing for
