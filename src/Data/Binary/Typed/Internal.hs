@@ -1,5 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_HADDOCK show-extensions #-}
+
+
 
 
 
@@ -231,12 +234,11 @@ data TypeFormat =
 
         -- | Include no type information.
         --
-        --   * Requires one byte more compared to using 'Binary' directly
-        --     (to tag the data as untyped, required for the decoding step).
-        --
-        --   * Encoding and decoding require negligible amount of additional
-        --     computational cost compared to direct (intrinsically untyped)
-        --     'Binary'.
+        -- * Requires one byte more compared to using 'Binary' directly
+        --   (to tag the data as untyped, required for the decoding step).
+        -- * Encoding and decoding require negligible amount of additional
+        --   computational cost compared to direct (intrinsically untyped)
+        --   'Binary'.
         Untyped
 
         -- | Like 'Hashed32', but uses a 5-bit hash value.
@@ -244,7 +246,6 @@ data TypeFormat =
         -- * Requires the same amount of space as 'Untyped', i.e. the only
         --   overhead compared to it is the computational cost to calculate
         --   the hash, which is almost identical to the one of 'Hashed32'.
-        --
         -- * Collisions occur with a probability of 1/2^5 = 1/32. For this
         --   reason, this format is only recommended when minimal data size
         --   is top priority.
@@ -257,23 +258,18 @@ data TypeFormat =
         -- * Requires five bytes more compared to using 'Binary' directly for
         --   the type information (one to tag as 'Hashed32', four for the
         --   hash value)
-        --
         -- * Subject to false positive due to hash collisions, although in
         --   practice this should almost never happen.
-        --
         -- * Type errors cannot tell the provided type ("Expected X, received
         --   type with hash H")
-        --
         -- * Computational cost similar to 'Hashed64'.
       | Hashed32
 
         -- | Like 'Hashed32', but uses a 64-bit hash value.
         --
         -- * Requires nine bytes more compared to using 'Binary'.
-        --
         -- * Hash collisions are even less likely to occur than with
         --   'Hashed32'.
-        --
         -- * Computational cost similar to 'Hashed32'.
       | Hashed64
 
@@ -284,10 +280,8 @@ data TypeFormat =
         --
         -- * Data size larger than 'Hashed32', but usually smaller than
         --   'Full'.
-        --
         -- * Both the hash and the shown type must match to satisfy the
         --   typechecker.
-        --
         -- * Useful type errors ("expected X, received Y"). All types are
         --   shown unqualified though, making @Foo.X@ and @Bar.X@ look
         --   identical in error messages. Remember this when you get a
@@ -319,7 +313,7 @@ data TypeFormat =
 --
 -- @
 -- value = 'typed' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
--- encded = 'encode' value
+-- encoded = 'encode' value
 -- @
 --
 -- The decode site can now verify whether decoding happens with the right type.
@@ -329,7 +323,7 @@ typed format x = Typed (makeTypeInformation format (typeOf x)) x
 
 
 -- | Create the 'TypeInformation' to be stored inside a 'Typed' value from
---   a 'Ty.TypeRep'.
+-- a 'Ty.TypeRep'.
 makeTypeInformation :: TypeFormat -> Ty.TypeRep -> TypeInformation
 makeTypeInformation format ty = case format of
       Untyped  -> Untyped'
@@ -358,7 +352,7 @@ erase (Typed _ty value) = value
 
 
 -- | Typecheck a 'Typed'. Returns the (well-typed) input, or an error message
---   if the types don't work out.
+-- if the types don't work out.
 typecheck :: Typeable a => Typed a -> Either String (Typed a)
 typecheck ty@(Typed typeInformation x) = case typeInformation of
       Cached' cache -> decode' cache >>= \ty' -> typecheck (Typed ty' x)

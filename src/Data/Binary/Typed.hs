@@ -1,10 +1,14 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_HADDOCK show-extensions #-}
+
+
+
+
+
 -- | Defines a type-safe 'Data.Binary.Binary' instance to ensure data is
 --   decoded with the type it was serialized from.
 --
 --   For usage information, see the "Data.Binary.Typed.Tutorial" module.
-
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Data.Binary.Typed (
 
       -- * Core functions
@@ -127,7 +131,6 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 -- -- (Descriptive) runtime error
 -- 'unsafeDecodeTyped' encoded :: ('Char', 'Int', 'Double')
 -- @
---
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
@@ -164,7 +167,6 @@ decodeTypedOrFail input = case decodeOrFail input of
 -- -- Left "Type error: expected (Char, Int, Double), got (String, Int, Double)"
 -- 'decodeTyped' encoded :: 'Either' 'String' ('Char', 'Int', 'Double')
 -- @
---
 decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a

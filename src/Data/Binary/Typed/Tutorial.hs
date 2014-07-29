@@ -77,9 +77,8 @@ import Data.Binary.Typed.Internal
 -- encoding can be used, with minimal overhead compared to using 'Binary'
 -- directly.
 --
--- For convenience, this module exports a couple of convenience functions that
--- have the type-mangling baked in already. The above example could have been
--- written as
+-- This module exports a couple of convenience functions that have the
+-- type-mangling baked in already. The above example could have been written as
 --
 -- @
 -- test3 = let val = 10 :: 'Int'
