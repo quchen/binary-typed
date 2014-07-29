@@ -71,7 +71,8 @@ data TypeInformation = Untyped'
                      | Hashed64' Hash64
                      | Shown'    Hash32 String
                      | Full'     TypeRep
-                     | Cached'   BSL.ByteString
+                     | Cached'   BSL.ByteString -- ^ Pre-serialized representation
+                                                -- of one of the other fields.
                      deriving (Eq, Ord, Show, Generic)
 
 instance Binary TypeInformation where
@@ -128,16 +129,16 @@ getFormat (Cached'   bs) = getFormat (decode bs)
 
 
 
--- | A hash value of a 'TypeRep'. Currently a 5-bit value created using
--- the MurmurHash2 algorithm.
+-- | A 5-bit hash value.
 --
 -- Since 'TypeInformation' needs 3 bit to store the sort of the
 -- 'TypeInformation', the remaining 5 bit per 'Word8' can be used to store a
 -- hash value at no additional space cost. For this reason, it is important that
--- the three rightmost bits of any 'Hashed5' are set to zero.
+-- the three rightmost bits of any 'Hashed5' are set to zero, i.e. @('.&.' 7)@
+-- is 'id' on the contained 'Word8'.
 --
 -- This type intentionally doesn't have a 'Binary' instance, since its
--- serialization is part of the 'TypeInformation' 'Binary' class exclusively.
+-- serialization is part of the 'TypeInformation' 'Binary' instance exclusively.
 newtype Hash5 = Hash5 Word8
       deriving (Eq, Ord, Show)
 
@@ -149,16 +150,14 @@ mkHash5 x = Hash5 (fromIntegral x .&. 0xF8)
 
 
 
--- | A hash value of a 'TypeRep'. Currently a 32-bit value created using
--- the MurmurHash2 algorithm.
+-- | A 32-bit hash value.
 newtype Hash32 = Hash32 Word32
       deriving (Eq, Ord, Show, Generic)
 instance Binary Hash32
 
 
 
--- | A hash value of a 'TypeRep'. Currently a 64-bit value created using
--- the MurmurHash2 algorithm.
+-- | A 64-bit hash value.
 newtype Hash64 = Hash64 Word64
       deriving (Eq, Ord, Show, Generic)
 instance Binary Hash64
@@ -246,7 +245,7 @@ data TypeFormat =
         -- * Requires the same amount of space as 'Untyped', i.e. the only
         --   overhead compared to it is the computational cost to calculate
         --   the hash, which is almost identical to the one of 'Hashed32'.
-        -- * Collisions occur with a probability of 1/2^5 = 1/32. For this
+        -- * Collisions occur with a probability of 1\/2^5 = 1\/32. For this
         --   reason, this format is only recommended when minimal data size
         --   is top priority.
         --
@@ -290,9 +289,9 @@ data TypeFormat =
 
         -- | Compare the full representation of a data type.
         --
-        -- * More verbose than 'Hashed' and 'Shown'. As a rule of thumb,
-        --   transmitted data is roughly the same as 'Shown', but all names
-        --   are fully qualified (package, module, type name).
+        -- * More verbose than 'Shown'. As a rule of thumb, transmitted data is
+        --   roughly the same as 'Shown', but all names are fully qualified
+        --   (package, module, type name).
         -- * Correct comparison (no false positives). An semi-exception here
         --   is when types change between package versions:
         --   @package-1.0 Foo.X@ and @package-1.1 Foo.X@ count as the same

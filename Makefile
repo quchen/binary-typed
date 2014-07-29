@@ -11,3 +11,6 @@ bench2 :
 
 messagelength :
 	./dist/build/message-length/message-length
+
+haddock :
+	cabal haddock --hyperlink-source
