@@ -35,6 +35,9 @@ module Data.Binary.Typed (
       , decodeTyped
       , decodeTypedOrFail
       , unsafeDecodeTyped
+      , decodeTyped'
+      , decodeTypedOrFail'
+      , unsafeDecodeTyped'
 
 ) where
 
@@ -48,6 +51,9 @@ import           Data.Binary
 import           Data.Binary.Get (ByteOffset)
 
 import           Data.Binary.Typed.Internal
+
+
+import Debug.Trace
 
 
 
@@ -155,20 +161,41 @@ decodeTypedOrFail input = case decodeOrFail input of
 
 
 
-decodeTypedOrFail' :: (Typeable a, Binary a)
+decodeTypedOrFail' :: forall a.
+                      (Typeable a, Binary a)
                    => BSL.ByteString
                    -> Either (BSL.ByteString, ByteOffset, String)
                              (BSL.ByteString, ByteOffset, a)
-decodeTypedOrFail' input = do
-      ty <- case decodeOrFail input of
-            Left (_rest, _offset, err) -> Left err
-            Right (rest, _offset, ty') -> return ty'
-      where
-            exTyperep = typeRep (Proxy :: Proxy a)
+decodeTypedOrFail' = \input -> do
+      (rest', offset', typed'@(Typed' ty value)) <- case decodeOrFail input of
+            Left (rest, offset, err) -> Left (rest, offset, err)
+            Right (rest, offset, ty')  -> return (rest, offset, ty')
+      if ty `elem` cache
+            then return (rest', offset', value)
+            else case typecheck' typed' of
+                  Left err -> Left (rest', offset', err)
+                  Right _ -> Right (rest', offset', value)
 
-            exHash5  = encode (makeTypeInformation Hashed5  exTyperep)
-            exHash32 = encode (makeTypeInformation Hashed32 exTyperep)
-            exHash64 = encode (makeTypeInformation Hashed64 exTyperep)
+      where exTyperep = trace "PING" $ typeRep (Proxy :: Proxy a)
+            exHash5  = makeTypeInformation Hashed5  exTyperep
+            exHash32 = makeTypeInformation Hashed32 exTyperep
+            exHash64 = makeTypeInformation Hashed64 exTyperep
+            cache = [exHash5, exHash32, exHash64]
+
+decodeTyped' :: (Typeable a, Binary a)
+            => BSL.ByteString
+            -> Either String a
+decodeTyped' bs = case decodeTypedOrFail' bs of
+      Left  (_rest, _offset, err)   -> Left err
+      Right (_rest, _offset, value) -> Right value
+
+
+
+unsafeDecodeTyped' :: (Typeable a, Binary a)
+                  => BSL.ByteString
+                  -> a
+unsafeDecodeTyped' x = let (Right r) = decodeTyped' x in r
+
 
 
 

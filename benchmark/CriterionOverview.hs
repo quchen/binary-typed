@@ -27,6 +27,9 @@ value = Right (Left ("Lorem ipsum dolor sit amet, consectetur adipiscing elit.\
 encodeTypedEncoder :: Complicated -> ByteString
 encodeTypedEncoder = encodeTyped mode
 
+decodeTypedUnsafely :: ByteString -> Complicated
+decodeTypedUnsafely = unsafeDecodeTyped'
+
 -- Precalcualte encoded values for decoding benchmark
 value_encodedBinary, value_encodedTyped :: ByteString
 value_encodedBinary = encode value
@@ -91,7 +94,7 @@ bench_decode_typed :: Benchmark
 bench_decode_typed = bench d (nf f value_encodedTyped)
       where d = "Typed with " ++ show mode
             f :: ByteString -> Complicated
-            f = unsafeDecodeTyped
+            f = decodeTypedUnsafely
 
 
 
@@ -117,4 +120,4 @@ bench_both_typed :: Benchmark
 bench_both_typed = bench d (nf f value)
       where d = "Typed with " ++ show mode
             f :: Complicated -> Complicated
-            f = unsafeDecodeTyped . encodeTyped mode
+            f = decodeTypedUnsafely . encodeTypedEncoder
