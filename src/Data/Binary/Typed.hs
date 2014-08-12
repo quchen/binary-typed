@@ -35,9 +35,6 @@ module Data.Binary.Typed (
       , decodeTyped
       , decodeTypedOrFail
       , unsafeDecodeTyped
-      , decodeTyped'
-      , decodeTypedOrFail'
-      , unsafeDecodeTyped'
 
 ) where
 
@@ -53,14 +50,16 @@ import           Data.Binary.Get (ByteOffset)
 import           Data.Binary.Typed.Internal
 
 
+
+
+-- #############################################################################
+-- #############################################################################
+-- #############################################################################
+
+import Control.Monad
 import System.IO.Unsafe
 import Data.IORef
 
-
-
--- #############################################################################
--- #############################################################################
--- #############################################################################
 
 -- DEBUGGING STUFF
 
@@ -75,6 +74,7 @@ ping value = unsafePerformIO $ do
       x <- readIORef counter
       modifyIORef counter (+1)
       putStr "Ping " >> print x
+      when (x > 100) (error "Not enouch caching :-(")
       return value
 {-# NOINLINE ping #-}
 
@@ -152,8 +152,8 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 
 
 
--- | Decode a typed value, throwing an error at runtime on failure.
--- Typed cousin of 'Data.Binary.decode'.
+-- | Decode a typed value, throwing a descriptive 'error' at runtime on failure.
+-- Typed cousin of 'Data.Binary.decode'. Based on 'decodeTypedOrFail'.
 --
 -- @
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
@@ -167,69 +167,15 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
-unsafeDecodeTyped = \input -> case decodeTyped input of
-      Right r  -> r
-      Left err -> error ("unsafeDecodeTyped failure: " ++ err)
-
-
-
--- | Safely decode data, yielding 'Either' an error 'String' or the value,
--- along with meta-information of the consumed binary data.
---
--- * Typed cousin of 'Data.Binary.decodeOrFail'.
---
--- * Like 'decodeTyped', but with additional data.
---
-decodeTypedOrFail :: (Typeable a, Binary a)
-                  => BSL.ByteString
-                  -> Either (BSL.ByteString, ByteOffset, String)
-                            (BSL.ByteString, ByteOffset, a)
-decodeTypedOrFail input = case decodeOrFail input of
-      Right (rest, offset, value) -> Right (rest, offset, erase value)
-      Left l -> Left l
-
-
-
-decodeTypedOrFail' :: forall a.
-                      (Typeable a, Binary a)
-                   => BSL.ByteString
-                   -> Either (BSL.ByteString, ByteOffset, String)
-                             (BSL.ByteString, ByteOffset, a)
-decodeTypedOrFail' = \input -> do
-      (rest, offset, typed'@(Typed' ty value)) <- decodeOrFail input
-      let addMeta x = (rest, offset, x)
-      if ty `elem` cache
-            then Right (addMeta value) -- cache hit, don't typecheck
-            else case typecheck' typed' of -- cache miss, typecheck manually
-                  Left err -> Left  (addMeta err)
-                  Right _  -> Right (addMeta value)
-
-      where exTypeRep = ping $ typeRep (Proxy :: Proxy a)
-            cache = map (\format -> makeTypeInformation format exTypeRep)
-                        [Hashed5, Hashed32, Hashed64] -- ^ List of formats to
-                                                      --   be cached
-
-decodeTyped' :: (Typeable a, Binary a)
-             => BSL.ByteString
-             -> Either String a
-decodeTyped' bs = case decodeTypedOrFail' bs of
-      Left  (_rest, _offset, err)   -> Left err
-      Right (_rest, _offset, value) -> Right value
-
-
-
-unsafeDecodeTyped' :: (Typeable a, Binary a)
-                   => BSL.ByteString
-                   -> a
-unsafeDecodeTyped' x = case decodeTyped' x of
-      Right r -> r
-      Left err -> error ("unsafeDecodeTyped' failure: " ++ err)
-
+unsafeDecodeTyped x = case decodeTypedOrFail x of
+      Left  (_, _, err)   -> error ("unsafeDecodeTyped' failure: " ++ err)
+      Right (_, _, value) -> value
 
 
 
 -- | Safely decode data, yielding 'Either' an error 'String' or the value.
 -- Equivalent to 'decodeTypedOrFail' stripped of the non-essential data.
+-- Based on 'decodeTypedOrFail'.
 --
 -- @
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
@@ -243,6 +189,38 @@ unsafeDecodeTyped' x = case decodeTyped' x of
 decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a
-decodeTyped bs = case decodeTypedOrFail bs of
-      Left  (_rest, _offset, err)   -> Left err
-      Right (_rest, _offset, value) -> Right value
+decodeTyped x = case decodeTypedOrFail x of
+      Left  (_, _, err)   -> Left err
+      Right (_, _, value) -> Right value
+
+
+
+-- | Safely decode data, yielding 'Either' an error 'String' or the value,
+-- along with meta-information of the consumed binary data.
+--
+-- * Typed cousin of 'Data.Binary.decodeOrFail'.
+--
+-- * Like 'decodeTyped', but with additional data.
+--
+-- * Automatically caches 'Hashed5', 'Hashed32' and 'Hashed64' representations,
+--   so that typechecking does not need to recalculate them on every decoding.
+decodeTypedOrFail :: forall a.
+                     (Typeable a, Binary a)
+                  => BSL.ByteString
+                  -> Either (BSL.ByteString, ByteOffset, String)
+                            (BSL.ByteString, ByteOffset, a)
+decodeTypedOrFail = \input -> do
+      (rest, offset, typed'@(Typed' ty value)) <- decodeOrFail input
+      let addMeta x = (rest, offset, x)
+      if isCached ty
+            then Right (addMeta value) -- cache hit, don't typecheck
+            else case typecheck' typed' of -- cache miss, typecheck manually
+                  Left err -> Left  (addMeta err)
+                  Right _  -> Right (addMeta value)
+
+      where
+
+      exTypeRep = ping $ typeRep (Proxy :: Proxy a)
+      cache = map (\format -> makeTypeInformation format exTypeRep)
+                  [Hashed5, Hashed32, Hashed64] -- ^ List of formats to be cached
+      isCached = (`elem` cache)

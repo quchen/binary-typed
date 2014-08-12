@@ -28,7 +28,7 @@ encodeTypedEncoder :: Complicated -> ByteString
 encodeTypedEncoder = encodeTyped mode
 
 decodeTypedUnsafely :: ByteString -> Complicated
-decodeTypedUnsafely = unsafeDecodeTyped'
+decodeTypedUnsafely = unsafeDecodeTyped
 
 -- Precalcualte encoded values for decoding benchmark
 value_encodedBinary, value_encodedTyped :: ByteString
