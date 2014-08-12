@@ -161,13 +161,15 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 -- -- \<value\>
 -- 'unsafeDecodeTyped' encoded :: ('String', 'Int', 'Double')
 --
--- -- (Descriptive) runtime error
+-- -- (Descriptive) runtime 'error'
 -- 'unsafeDecodeTyped' encoded :: ('Char', 'Int', 'Double')
 -- @
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
-unsafeDecodeTyped = erase . decode
+unsafeDecodeTyped = \input -> case decodeTyped input of
+      Right r  -> r
+      Left err -> error ("unsafeDecodeTyped failure: " ++ err)
 
 
 
@@ -199,7 +201,7 @@ decodeTypedOrFail' = \input -> do
       if ty `elem` cache
             then Right (addMeta value) -- cache hit, don't typecheck
             else case typecheck' typed' of -- cache miss, typecheck manually
-                  Left err -> Left (addMeta err)
+                  Left err -> Left  (addMeta err)
                   Right _  -> Right (addMeta value)
 
       where exTypeRep = ping $ typeRep (Proxy :: Proxy a)
@@ -219,7 +221,9 @@ decodeTyped' bs = case decodeTypedOrFail' bs of
 unsafeDecodeTyped' :: (Typeable a, Binary a)
                    => BSL.ByteString
                    -> a
-unsafeDecodeTyped' x = let (Right r) = decodeTyped' x in r
+unsafeDecodeTyped' x = case decodeTyped' x of
+      Right r -> r
+      Left err -> error ("unsafeDecodeTyped' failure: " ++ err)
 
 
 
