@@ -53,7 +53,34 @@ import           Data.Binary.Get (ByteOffset)
 import           Data.Binary.Typed.Internal
 
 
-import Debug.Trace
+import System.IO.Unsafe
+import Data.IORef
+
+
+
+-- #############################################################################
+-- #############################################################################
+-- #############################################################################
+
+-- DEBUGGING STUFF
+
+-- global counter to be used by 'ping'
+counter :: IORef Int
+counter = unsafePerformIO (newIORef 0)
+{-# NOINLINE counter #-}
+
+-- like Debug.Trace.trace, but prints a counter.
+ping :: a -> a
+ping value = unsafePerformIO $ do
+      x <- readIORef counter
+      modifyIORef counter (+1)
+      putStr "Ping " >> print x
+      return value
+{-# NOINLINE ping #-}
+
+-- #############################################################################
+-- #############################################################################
+-- #############################################################################
 
 
 
@@ -167,24 +194,22 @@ decodeTypedOrFail' :: forall a.
                    -> Either (BSL.ByteString, ByteOffset, String)
                              (BSL.ByteString, ByteOffset, a)
 decodeTypedOrFail' = \input -> do
-      (rest', offset', typed'@(Typed' ty value)) <- case decodeOrFail input of
-            Left (rest, offset, err) -> Left (rest, offset, err)
-            Right (rest, offset, ty')  -> return (rest, offset, ty')
+      (rest, offset, typed'@(Typed' ty value)) <- decodeOrFail input
+      let addMeta x = (rest, offset, x)
       if ty `elem` cache
-            then return (rest', offset', value)
-            else case typecheck' typed' of
-                  Left err -> Left (rest', offset', err)
-                  Right _ -> Right (rest', offset', value)
+            then Right (addMeta value) -- cache hit, don't typecheck
+            else case typecheck' typed' of -- cache miss, typecheck manually
+                  Left err -> Left (addMeta err)
+                  Right _  -> Right (addMeta value)
 
-      where exTyperep = trace "PING" $ typeRep (Proxy :: Proxy a)
-            exHash5  = makeTypeInformation Hashed5  exTyperep
-            exHash32 = makeTypeInformation Hashed32 exTyperep
-            exHash64 = makeTypeInformation Hashed64 exTyperep
-            cache = [exHash5, exHash32, exHash64]
+      where exTypeRep = ping $ typeRep (Proxy :: Proxy a)
+            cache = map (\format -> makeTypeInformation format exTypeRep)
+                        [Hashed5, Hashed32, Hashed64] -- ^ List of formats to
+                                                      --   be cached
 
 decodeTyped' :: (Typeable a, Binary a)
-            => BSL.ByteString
-            -> Either String a
+             => BSL.ByteString
+             -> Either String a
 decodeTyped' bs = case decodeTypedOrFail' bs of
       Left  (_rest, _offset, err)   -> Left err
       Right (_rest, _offset, value) -> Right value
@@ -192,8 +217,8 @@ decodeTyped' bs = case decodeTypedOrFail' bs of
 
 
 unsafeDecodeTyped' :: (Typeable a, Binary a)
-                  => BSL.ByteString
-                  -> a
+                   => BSL.ByteString
+                   -> a
 unsafeDecodeTyped' x = let (Right r) = decodeTyped' x in r
 
 

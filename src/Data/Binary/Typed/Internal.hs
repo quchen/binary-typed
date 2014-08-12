@@ -197,7 +197,8 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
 
 -- | Like 'Typed', but the type information is not checked. Useful to read type
 -- and value, and do the typechecking externally, as required by the caching
--- of 'Data.Binary.Typed.decodeTyped'.
+-- of 'Data.Binary.Typed.decodeTyped'. Using 'typecheck'', this can be promoted
+-- to a proper 'Typed' value.
 data Typed' a = Typed' TypeInformation a
 
 -- | "Typed' \<format\> \<value\>"

@@ -43,6 +43,7 @@ main = do
       evaluate (value_encodedBinary `deepseq` ())
       evaluate (value_encodedTyped  `deepseq` ())
       evaluate (encodeTypedEncoder      `seq` ())
+      evaluate (decodeTypedUnsafely     `seq` ())
 
       defaultMain [ bgroup "encode"        bench_encode
                   , bgroup "decode"        bench_decode
@@ -91,10 +92,8 @@ bench_decode_binaryOnly = bench d (nf f value_encodedBinary)
             f = decode
 
 bench_decode_typed :: Benchmark
-bench_decode_typed = bench d (nf f value_encodedTyped)
+bench_decode_typed = bench d (nf decodeTypedUnsafely value_encodedTyped)
       where d = "Typed with " ++ show mode
-            f :: ByteString -> Complicated
-            f = decodeTypedUnsafely
 
 
 
