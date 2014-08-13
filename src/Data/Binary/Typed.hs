@@ -52,38 +52,6 @@ import           Data.Binary.Typed.Internal
 
 
 
--- #############################################################################
--- #############################################################################
--- #############################################################################
-
-import Control.Monad
-import System.IO.Unsafe
-import Data.IORef
-
-
--- DEBUGGING STUFF
-
--- global counter to be used by 'ping'
-counter :: IORef Int
-counter = unsafePerformIO (newIORef 0)
-{-# NOINLINE counter #-}
-
--- like Debug.Trace.trace, but prints a counter.
-ping :: a -> a
-ping value = unsafePerformIO $ do
-      x <- readIORef counter
-      modifyIORef counter (+1)
-      putStr "Ping " >> print x
-      when (x > 20) (error "Not enouch caching :-(")
-      return value
-{-# NOINLINE ping #-}
-
--- #############################################################################
--- #############################################################################
--- #############################################################################
-
-
-
 
 -- | Modify the value contained in a 'Typed', keeping the same sort of type
 -- representation. In other words, calling 'mapTyped' on something that is
