@@ -23,13 +23,6 @@ value :: Complicated
 value = Right (Left ("Lorem ipsum dolor sit amet, consectetur adipiscing elit.\
                      \ Nam vitae lacinia tellus. Maecenas posuere."))
 
--- | Pre-define encoding function so sharing can work properly
-encodeTypedEncoder :: Complicated -> ByteString
-encodeTypedEncoder = encodeTyped mode
-
-decodeTypedUnsafely :: ByteString -> Complicated
-decodeTypedUnsafely = unsafeDecodeTyped
-
 -- Precalcualte encoded values for decoding benchmark
 value_encodedBinary, value_encodedTyped :: ByteString
 value_encodedBinary = encode value
@@ -42,11 +35,9 @@ main = do
       evaluate (value               `deepseq` ())
       evaluate (value_encodedBinary `deepseq` ())
       evaluate (value_encodedTyped  `deepseq` ())
-      evaluate (encodeTypedEncoder      `seq` ())
-      evaluate (decodeTypedUnsafely     `seq` ())
 
-      defaultMain [ bgroup "encode"        bench_encode
-                  , bgroup "decode"        bench_decode
+      defaultMain [ {- bgroup "encode"        bench_encode
+                  , -} bgroup "decode"        bench_decode
                   , bgroup "encode+decode" bench_both
                   ]
 
@@ -70,7 +61,7 @@ bench_encode_binaryOnly = bench d (nf f value)
 bench_encode_typed :: Benchmark
 bench_encode_typed = bench d (nf f value)
       where d = "Typed with " ++ show mode
-            f = encodeTypedEncoder
+            f = encodeTyped mode
 
 
 
@@ -81,8 +72,8 @@ bench_encode_typed = bench d (nf f value)
 
 
 bench_decode :: [Benchmark]
-bench_decode = [ bench_decode_binaryOnly
-               , bench_decode_typed
+bench_decode = [ {- bench_decode_binaryOnly
+               , -} bench_decode_typed
                ]
 
 bench_decode_binaryOnly :: Benchmark
@@ -92,8 +83,10 @@ bench_decode_binaryOnly = bench d (nf f value_encodedBinary)
             f = decode
 
 bench_decode_typed :: Benchmark
-bench_decode_typed = bench d (nf decodeTypedUnsafely value_encodedTyped)
+bench_decode_typed = bench d (nf f value_encodedTyped)
       where d = "Typed with " ++ show mode
+            f :: ByteString -> Complicated
+            f = unsafeDecodeTyped
 
 
 
@@ -119,4 +112,4 @@ bench_both_typed :: Benchmark
 bench_both_typed = bench d (nf f value)
       where d = "Typed with " ++ show mode
             f :: Complicated -> Complicated
-            f = decodeTypedUnsafely . encodeTypedEncoder
+            f = unsafeDecodeTyped . encodeTyped mode

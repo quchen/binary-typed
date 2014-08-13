@@ -74,7 +74,7 @@ ping value = unsafePerformIO $ do
       x <- readIORef counter
       modifyIORef counter (+1)
       putStr "Ping " >> print x
-      when (x > 100) (error "Not enouch caching :-(")
+      when (x > 20) (error "Not enouch caching :-(")
       return value
 {-# NOINLINE ping #-}
 
@@ -167,9 +167,11 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
-unsafeDecodeTyped x = case decodeTypedOrFail x of
+unsafeDecodeTyped = \x -> case f x of
       Left  (_, _, err)   -> error ("unsafeDecodeTyped' failure: " ++ err)
       Right (_, _, value) -> value
+
+      where f = decodeTypedOrFail
 
 
 
@@ -189,9 +191,11 @@ unsafeDecodeTyped x = case decodeTypedOrFail x of
 decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a
-decodeTyped x = case decodeTypedOrFail x of
+decodeTyped = \x -> case f x of
       Left  (_, _, err)   -> Left err
       Right (_, _, value) -> Right value
+
+      where f = decodeTypedOrFail
 
 
 
