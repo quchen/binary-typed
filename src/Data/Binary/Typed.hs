@@ -106,6 +106,8 @@ encodeTyped format = \x -> encode (Typed typeInfo x)
       where typeInfo = preserialize (makeTypeInformation format typerep)
             typerep = typeRep (Proxy :: Proxy a)
 
+{-# INLINE encodeTyped #-}
+
 
 
 encodeTypedLike ::
@@ -197,4 +199,4 @@ decodeTypedOrFail = \input -> do
                   [Hashed5, Hashed32, Hashed64] -- ^ List of formats to be cached
       isCached = (`elem` cache)
 
-{-# INLINE decodeTypedOrFail #-}
+{-# INLINE decodeTypedOrFail #-} -- Inlining is crucial for caching to work!
