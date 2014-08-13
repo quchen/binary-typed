@@ -167,11 +167,11 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
-unsafeDecodeTyped = \x -> case f x of
+unsafeDecodeTyped = \x -> case decodeTypedOrFail x of
       Left  (_, _, err)   -> error ("unsafeDecodeTyped' failure: " ++ err)
       Right (_, _, value) -> value
 
-      where f = decodeTypedOrFail
+{-# INLINE unsafeDecodeTyped #-}
 
 
 
@@ -191,11 +191,11 @@ unsafeDecodeTyped = \x -> case f x of
 decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a
-decodeTyped = \x -> case f x of
+decodeTyped = \x -> case decodeTypedOrFail x of
       Left  (_, _, err)   -> Left err
       Right (_, _, value) -> Right value
 
-      where f = decodeTypedOrFail
+{-# INLINE decodeTyped #-}
 
 
 
@@ -224,7 +224,9 @@ decodeTypedOrFail = \input -> do
 
       where
 
-      exTypeRep = ping $ typeRep (Proxy :: Proxy a)
+      exTypeRep = typeRep (Proxy :: Proxy a)
       cache = map (\format -> makeTypeInformation format exTypeRep)
                   [Hashed5, Hashed32, Hashed64] -- ^ List of formats to be cached
       isCached = (`elem` cache)
+
+{-# INLINE decodeTypedOrFail #-}

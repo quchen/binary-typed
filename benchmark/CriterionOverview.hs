@@ -36,8 +36,8 @@ main = do
       evaluate (value_encodedBinary `deepseq` ())
       evaluate (value_encodedTyped  `deepseq` ())
 
-      defaultMain [ {- bgroup "encode"        bench_encode
-                  , -} bgroup "decode"        bench_decode
+      defaultMain [ bgroup "encode"        bench_encode
+                  , bgroup "decode"        bench_decode
                   , bgroup "encode+decode" bench_both
                   ]
 
@@ -72,8 +72,8 @@ bench_encode_typed = bench d (nf f value)
 
 
 bench_decode :: [Benchmark]
-bench_decode = [ {- bench_decode_binaryOnly
-               , -} bench_decode_typed
+bench_decode = [ bench_decode_binaryOnly
+               , bench_decode_typed
                ]
 
 bench_decode_binaryOnly :: Benchmark
