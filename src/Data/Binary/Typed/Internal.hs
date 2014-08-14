@@ -13,6 +13,7 @@ module Data.Binary.Typed.Internal (
 
       -- * 'Typed'
         Typed(..)
+      , Typed'(..)
       , TypeInformation(..)
       , Hash5(..)
       , mkHash5
@@ -23,6 +24,7 @@ module Data.Binary.Typed.Internal (
       , TypeFormat(..)
       , getFormat
       , typecheck
+      , typecheck'
       , erase
       , preserialize
 
@@ -171,7 +173,7 @@ data Typed a = Typed TypeInformation a
       -- construction of ill-typed 'Typed' data. Use the 'typed' smart
       -- constructor unless you really need 'Typed'.
 
--- | \"typed \<format\> \<value\>\"
+-- | "typed \<format\> \<value\>"
 instance Show a => Show (Typed a) where
       show (Typed ty x) = printf "typed %s (%s)"
                                  (show (getFormat ty))
@@ -181,10 +183,33 @@ instance Show a => Show (Typed a) where
 -- confidence (depending on with what 'TypeFormat' the 'Typed' was
 -- constructed).
 instance (Binary a, Typeable a) => Binary (Typed a) where
-      get = do (ty, value) <- get
+      get = do -- Explicitly get both values instead of a (ty,value) tuple
+               -- in case Binary changes in the future. This ensures caching
+               -- in 'decodeTyped' can rely on the two values coming in
+               -- in this particular way.
+               ty    <- get
+               value <- get
                either fail return (typecheck (Typed ty value))
                -- NB: 'fail' is safe in Get Monad
-      put (Typed ty value) = put (ty, value)
+      put (Typed ty value) = put ty >> put value
+
+
+
+-- | Like 'Typed', but the type information is not checked. Useful to read type
+-- and value, and do the typechecking externally, as required by the caching
+-- of 'Data.Binary.Typed.decodeTyped'. Using 'typecheck'', this can be promoted
+-- to a proper 'Typed' value.
+data Typed' a = Typed' TypeInformation a
+
+-- | "Typed' \<format\> \<value\>"
+instance Show a => Show (Typed' a) where
+      show (Typed' ty x) = printf "Typed' %s (%s)"
+                                 (show (getFormat ty))
+                                 (show x)
+
+instance (Binary a) => Binary (Typed' a) where
+      get = liftA2 Typed' get get
+      put (Typed' ty value) = put ty >> put value
 
 
 
@@ -387,6 +412,12 @@ typecheck ty@(Typed typeInformation x) = case typeInformation of
       decode' bs = case decodeOrFail bs of
             Left  (_,_,err) -> Left  ("Cache error! " ++ err)
             Right (_,_,val) -> Right val
+
+
+
+-- | Typecheck a 'Typed\'' value so it can be used as a safe 'Typed' value.
+typecheck' :: Typeable a => Typed' a -> Either String (Typed a)
+typecheck' (Typed' ty value) = typecheck (Typed ty value)
 
 
 

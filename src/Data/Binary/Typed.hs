@@ -52,6 +52,7 @@ import           Data.Binary.Typed.Internal
 
 
 
+
 -- | Modify the value contained in a 'Typed', keeping the same sort of type
 -- representation. In other words, calling 'mapTyped' on something that is
 -- typed using 'Hashed' will yield a 'Hashed' value again.
@@ -105,6 +106,8 @@ encodeTyped format = \x -> encode (Typed typeInfo x)
       where typeInfo = preserialize (makeTypeInformation format typerep)
             typerep = typeRep (Proxy :: Proxy a)
 
+{-# INLINE encodeTyped #-}
+
 
 
 encodeTypedLike ::
@@ -119,8 +122,8 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 
 
 
--- | Decode a typed value, throwing an error at runtime on failure.
--- Typed cousin of 'Data.Binary.decode'.
+-- | Decode a typed value, throwing a descriptive 'error' at runtime on failure.
+-- Typed cousin of 'Data.Binary.decode'. Based on 'decodeTypedOrFail'.
 --
 -- @
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
@@ -128,35 +131,23 @@ encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
 -- -- \<value\>
 -- 'unsafeDecodeTyped' encoded :: ('String', 'Int', 'Double')
 --
--- -- (Descriptive) runtime error
+-- -- (Descriptive) runtime 'error'
 -- 'unsafeDecodeTyped' encoded :: ('Char', 'Int', 'Double')
 -- @
 unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
-unsafeDecodeTyped = erase . decode
+unsafeDecodeTyped = \x -> case decodeTypedOrFail x of
+      Left  (_, _, err)   -> error ("unsafeDecodeTyped' failure: " ++ err)
+      Right (_, _, value) -> value
 
-
-
--- | Safely decode data, yielding 'Either' an error 'String' or the value,
--- along with meta-information of the consumed binary data.
---
--- * Typed cousin of 'Data.Binary.decodeOrFail'.
---
--- * Like 'decodeTyped', but with additional data.
---
-decodeTypedOrFail :: (Typeable a, Binary a)
-                  => BSL.ByteString
-                  -> Either (BSL.ByteString, ByteOffset, String)
-                            (BSL.ByteString, ByteOffset, a)
-decodeTypedOrFail input = case decodeOrFail input of
-      Right (rest, offset, value) -> Right (rest, offset, erase value)
-      Left l -> Left l
+{-# INLINE unsafeDecodeTyped #-}
 
 
 
 -- | Safely decode data, yielding 'Either' an error 'String' or the value.
 -- Equivalent to 'decodeTypedOrFail' stripped of the non-essential data.
+-- Based on 'decodeTypedOrFail'.
 --
 -- @
 -- encoded = 'encodeTyped' 'Full' ("hello", 1 :: 'Int', 2.34 :: 'Double')
@@ -170,6 +161,42 @@ decodeTypedOrFail input = case decodeOrFail input of
 decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a
-decodeTyped bs = case decodeTypedOrFail bs of
-      Left  (_rest, _offset, err)   -> Left err
-      Right (_rest, _offset, value) -> Right value
+decodeTyped = \x -> case decodeTypedOrFail x of
+      Left  (_, _, err)   -> Left err
+      Right (_, _, value) -> Right value
+
+{-# INLINE decodeTyped #-}
+
+
+
+-- | Safely decode data, yielding 'Either' an error 'String' or the value,
+-- along with meta-information of the consumed binary data.
+--
+-- * Typed cousin of 'Data.Binary.decodeOrFail'.
+--
+-- * Like 'decodeTyped', but with additional data.
+--
+-- * Automatically caches 'Hashed5', 'Hashed32' and 'Hashed64' representations,
+--   so that typechecking does not need to recalculate them on every decoding.
+decodeTypedOrFail :: forall a.
+                     (Typeable a, Binary a)
+                  => BSL.ByteString
+                  -> Either (BSL.ByteString, ByteOffset, String)
+                            (BSL.ByteString, ByteOffset, a)
+decodeTypedOrFail = \input -> do
+      (rest, offset, typed'@(Typed' ty value)) <- decodeOrFail input
+      let addMeta x = (rest, offset, x)
+      if isCached ty
+            then Right (addMeta value) -- cache hit, don't typecheck
+            else case typecheck' typed' of -- cache miss, typecheck manually
+                  Left err -> Left  (addMeta err)
+                  Right _  -> Right (addMeta value)
+
+      where
+
+      exTypeRep = typeRep (Proxy :: Proxy a)
+      cache = map (\format -> makeTypeInformation format exTypeRep)
+                  [Hashed5, Hashed32, Hashed64] -- List of formats to be cached
+      isCached = (`elem` cache)
+
+{-# INLINE decodeTypedOrFail #-} -- Inlining is crucial for caching to work!

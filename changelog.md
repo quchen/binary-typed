@@ -44,3 +44,10 @@ Initial release.
 - Add script to upload documentation to Hackage, since with the use of the new
   `Typeable` GHC 7.6.3, which Hackage currently runs, cannot build the docs
   itself.
+
+### 0.2.3
+
+- Decoding now caches as well for `Hashed*` representations. This saves
+  recalculating the `TypeRep` of the expected type, which previously was the
+  bottleneck. Both encoding and decoding speeds are now very close to untyped
+  `Binary`.
