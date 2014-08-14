@@ -19,10 +19,10 @@ a couple of key differences:
 - Error messages can provide details on type errors at the cost of
   longer message lengths to include the necessary information.
 
-- Serialization computationally almost as efficient as `Data.Binary` when
-  sharing type representations; decoding however is slower.
-  These values obviously depend a lot on the involved data and its type;
-  an example benchmark is shown in the picture below.
+- Very small performance overhead compared to using standard `Binary` due to
+  caching when using hashed type information. Since shown and full types are not
+  cached, decoding them has a significant performance hit (ballpark: factor of
+  two).
 
 - No depencency on `Internal` modules of other libraries, and a very small
   dependency footprint in general.
