@@ -29,7 +29,6 @@ module Data.Binary.Typed (
 
       -- ** Encoding
       , encodeTyped
-      , encodeTypedLike
 
       -- ** Decoding
       , decodeTyped
@@ -108,17 +107,6 @@ encodeTyped format = \x -> encode (Typed typeInfo x)
 
 {-# INLINE encodeTyped #-}
 
-
-
-encodeTypedLike ::
-         (Typeable a, Binary a)
-      => Typed a
-      -> a
-      -> BSL.ByteString
-encodeTypedLike (Typed ty _) = encodeTyped (getFormat ty)
-
-{-# DEPRECATED encodeTypedLike
-               "'encodeTyped' now caches automatically for all types. Will be removed in 0.3." #-}
 
 
 
