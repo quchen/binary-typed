@@ -138,10 +138,10 @@ unsafeDecodeTyped :: (Typeable a, Binary a)
                   => BSL.ByteString
                   -> a
 unsafeDecodeTyped = \x -> case decodeTypedOrFail x of
-      Left  (_, _, err)   -> error ("unsafeDecodeTyped' failure: " ++ err)
-      Right (_, _, value) -> value
+      Left  (_,_,err)   -> error ("unsafeDecodeTyped' failure: " ++ err)
+      Right (_,_,value) -> value
 
-{-# INLINE unsafeDecodeTyped #-}
+{-# INLINE unsafeDecodeTyped #-} -- Inlining is crucial for caching to work!
 
 
 
@@ -162,10 +162,10 @@ decodeTyped :: (Typeable a, Binary a)
             => BSL.ByteString
             -> Either String a
 decodeTyped = \x -> case decodeTypedOrFail x of
-      Left  (_, _, err)   -> Left err
-      Right (_, _, value) -> Right value
+      Left  (_,_,err)   -> Left err
+      Right (_,_,value) -> Right value
 
-{-# INLINE decodeTyped #-}
+{-# INLINE decodeTyped #-} -- Inlining is crucial for caching to work!
 
 
 

@@ -80,11 +80,11 @@ data TypeInformation = Untyped'
 instance Binary TypeInformation where
       put Untyped'             = putWord8 0
       put (Hashed5' (Hash5 x)) = putWord8 (x .|. 1) -- See 'Hash5' for info
-      put (Hashed32' x)        = putWord8 2 >> put x
-      put (Hashed64' x)        = putWord8 3 >> put x
-      put (Shown'    x y)      = putWord8 4 >> put x >> put y
-      put (Full'     x)        = putWord8 5 >> put x
-      put (Cached'   x)        = putWord8 6 >> put x
+      put (Hashed32' x)        = putWord8 2 *> put x
+      put (Hashed64' x)        = putWord8 3 *> put x
+      put (Shown'    x y)      = putWord8 4 *> put x *> put y
+      put (Full'     x)        = putWord8 5 *> put x
+      put (Cached'   x)        = putWord8 6 *> put x
 
       get = getWord8 >>= \case
             0 -> return Untyped'
@@ -189,9 +189,11 @@ instance (Binary a, Typeable a) => Binary (Typed a) where
                -- in this particular way.
                ty    <- get
                value <- get
-               either fail return (typecheck (Typed ty value))
-               -- NB: 'fail' is safe in Get Monad
-      put (Typed ty value) = put ty >> put value
+               case typecheck (Typed ty value) of
+                     Left err -> fail err -- NB: 'fail' is safe in Get Monad
+                     Right wellTyped -> return wellTyped
+
+      put (Typed ty value) = put ty *> put value
 
 
 
@@ -209,7 +211,7 @@ instance Show a => Show (Typed' a) where
 
 instance (Binary a) => Binary (Typed' a) where
       get = liftA2 Typed' get get
-      put (Typed' ty value) = put ty >> put value
+      put (Typed' ty value) = put ty *> put value
 
 
 
@@ -349,14 +351,12 @@ typed format x = Typed (makeTypeInformation format (typeOf x)) x
 -- | Create the 'TypeInformation' to be stored inside a 'Typed' value from
 -- a 'Ty.TypeRep'.
 makeTypeInformation :: TypeFormat -> Ty.TypeRep -> TypeInformation
-makeTypeInformation format ty = case format of
-      Untyped  -> Untyped'
-      Hashed5  -> Hashed5'   (hashType5    ty)
-      Hashed32 -> Hashed32'  (hashType32   ty)
-      Hashed64 -> Hashed64'  (hashType64   ty)
-      Shown    -> Shown'     (hashType32   ty) (show ty)
-      Full     -> Full'      (stripTypeRep ty)
-
+makeTypeInformation Untyped  _  = Untyped'
+makeTypeInformation Hashed5  ty = Hashed5'   (hashType5    ty)
+makeTypeInformation Hashed32 ty = Hashed32'  (hashType32   ty)
+makeTypeInformation Hashed64 ty = Hashed64'  (hashType64   ty)
+makeTypeInformation Shown    ty = Shown'     (hashType32   ty) (show ty)
+makeTypeInformation Full     ty = Full'      (stripTypeRep ty)
 
 
 
