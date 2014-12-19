@@ -52,6 +52,7 @@ source-repository head
 library
       default-language:    Haskell2010
       exposed-modules:     Data.Binary.Typed
+                           Data.Binary.Typed.Debug
                            Data.Binary.Typed.Internal
                            Data.Binary.Typed.Tutorial
       ghc-options:         -Wall
@@ -68,7 +69,9 @@ test-suite tasty
       ghc-options:         -Wall -fno-warn-orphans
       hs-source-dirs:      tests
       main-is:             Tests.hs
-      other-modules:       HUnit, QuickCheck
+      other-modules:       HUnit
+                         , QuickCheck
+                         , APIConsistency
       other-extensions:    ScopedTypeVariables, NumDecimals
       type:                exitcode-stdio-1.0
       build-depends:       base

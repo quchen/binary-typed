@@ -51,3 +51,12 @@ Initial release.
   recalculating the `TypeRep` of the expected type, which previously was the
   bottleneck. Both encoding and decoding speeds are now very close to untyped
   `Binary`.
+
+
+
+## 0.3
+
+- Add `Debug` module, which is a drop-in replacement for the ordinary API.
+  However, a message is emitted via `Debug.Trace` every time a type
+  representation is calculated, which makes it possible to debug proper
+  sharing/caching.
