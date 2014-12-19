@@ -2,10 +2,19 @@
 {-# OPTIONS_HADDOCK show-extensions #-}
 
 -- | This module has the same interface as "Data.Binary.Typed", but emits
---   debugging messages via "Debug.Trace" whenever a 'TypeInformation' is
---   calculated. This is useful to determine whether caching works properly,
---   i.e. if a single serialization point emity a lot of caching messages
---   it's worth having a look at.
+-- debugging messages via "Debug.Trace" whenever a 'TypeInformation' is
+-- calculated. This is useful to determine whether caching works properly,
+-- i.e. if a single serialization point emity a lot of caching messages
+-- it's worth having a look at.
+--
+-- A simple example to check sharing is to evaluate
+--
+-- @
+-- 'map' ('encodeTyped' 'Hashed5') "hello world!"
+-- @
+--
+-- This should print only one debug message "TypeRep/Hashed5 calculated",
+-- since the encoding function is shared between all invocations.
 
 
 
@@ -71,6 +80,29 @@ makeTypeInformationDebug format typerep =
 -- @
 reType :: Typeable a => TypeFormat -> Typed a -> Typed a
 reType format (Typed _ty x) = Typed (makeTypeInformationDebug format (typeOf x)) x
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- ##########################################################################
+-- ###                                                                    ###
+-- ###  What follows was simply copied from the normal module, replacing  ###
+-- ###  makeTypeInformation with makeTypeInformationDebug.                ###
+-- ###                                                                    ###
+-- ##########################################################################
 
 
 

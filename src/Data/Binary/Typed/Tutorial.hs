@@ -143,3 +143,5 @@ import Data.Binary.Typed.Internal
 --   * 'decodeTypedOrFail' (like 'decodeTyped', but with more meta information)
 --
 --   * 'unsafeDecodeTyped' (which throws a runtime error on type mismatch)
+--
+-- (The "Data.Binary.Typed.Debug" module shares the same API.)

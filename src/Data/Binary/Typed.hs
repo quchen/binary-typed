@@ -6,9 +6,11 @@
 
 
 -- | Defines a type-safe 'Data.Binary.Binary' instance to ensure data is
---   decoded with the type it was serialized from.
+--   ecoded with the type it was serialized from.
 --
---   For usage information, see the "Data.Binary.Typed.Tutorial" module.
+--  * The "Data.Binary.Typed.Tutorial" provides some more examples of usage.
+--  * The "Data.Binary.Typed.Debug" is useful to ensure calculated type
+--    representations are shared properly.
 module Data.Binary.Typed (
 
       -- * Core functions
