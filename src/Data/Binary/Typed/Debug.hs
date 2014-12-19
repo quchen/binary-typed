@@ -1,30 +1,37 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_HADDOCK show-extensions #-}
 
-
-
-
-
--- | Defines a type-safe 'Data.Binary.Binary' instance to ensure data is
---   ecoded with the type it was serialized from.
+-- | This module has the same interface as "Data.Binary.Typed", but emits
+-- debugging messages via "Debug.Trace" whenever a 'TypeInformation' is
+-- calculated. This is useful to determine whether caching works properly,
+-- i.e. if a single serialization point emity a lot of caching messages
+-- it's worth having a look at.
 --
---  * The "Data.Binary.Typed.Tutorial" provides some more examples of usage.
---  * The "Data.Binary.Typed.Debug" is useful to ensure calculated type
---    representations are shared properly.
-module Data.Binary.Typed (
+-- A simple example to check sharing is to evaluate
+--
+-- @
+-- 'map' ('encodeTyped' 'Hashed5') "hello world!"
+-- @
+--
+-- This should print only one debug message "TypeRep/Hashed5 calculated",
+-- since the encoding function is shared between all invocations.
+
+
+
+module Data.Binary.Typed.Debug (
 
       -- * Core functions
-        Typed
+        Normal.Typed
       , typed
-      , TypeFormat(..)
-      , erase
+      , Normal.TypeFormat(..)
+      , Internal.erase
 
 
       -- * Useful general helpers
-      , mapTyped
-      , reValue
+      , Normal.mapTyped
+      , Normal.reValue
       , reType
-      , preserialize
+      , Internal.preserialize
 
 
       -- * Typed serialization
@@ -43,38 +50,26 @@ module Data.Binary.Typed (
 
 import qualified Data.ByteString.Lazy as BSL
 
-import           Data.Typeable (Typeable, typeRep, Proxy(..))
+import           Data.Typeable (Typeable, typeRep, Proxy(..), typeOf)
+import qualified Data.Typeable as Ty
 
 import           Data.Binary
 import           Data.Binary.Get (ByteOffset)
 
-import           Data.Binary.Typed.Internal
+import qualified Data.Binary.Typed as Normal
+import           Data.Binary.Typed.Internal as Internal hiding (makeTypeInformation)
+import qualified Data.Binary.Typed.Internal as Internal (makeTypeInformation)
+
+import qualified Debug.Trace as Debug
 
 
 
-
-
--- | Modify the value contained in a 'Typed', keeping the same sort of type
--- representation. In other words, calling 'mapTyped' on something that is
--- typed using 'Hashed' will yield a 'Hashed' value again.
---
--- Note: this destroys 'precache'd information, so that values have to be
--- 'precache'd again if desired. As a consequence, @'mapTyped' 'id'@
--- can be used to un-'precache' values.
-mapTyped :: Typeable b => (a -> b) -> Typed a -> Typed b
-mapTyped f (Typed ty x) = typed (getFormat ty) (f x)
-
-
-
--- | Change the value contained in a 'Typed', leaving the type representation
--- unchanged. This can be useful to avoid recomputation of the included type
--- information, and can improve performance significantly if many individual
--- messages are serialized.
---
--- Can be seen as a more efficient 'mapTyped' in case @f@ is an endomorphism
--- (i.e. has type @a -> a@).
-reValue :: (a -> a) -> Typed a -> Typed a
-reValue f (Typed ty x) = Typed ty (f x)
+-- | Similar to 'makeTypeInformation', but prints a message each time it's
+--   forced.
+makeTypeInformationDebug :: TypeFormat -> Ty.TypeRep -> TypeInformation
+makeTypeInformationDebug format typerep =
+      let message = "TypeRep/" ++ show format ++ " calculated"
+      in  Debug.trace message (Internal.makeTypeInformation format typerep)
 
 
 
@@ -84,7 +79,30 @@ reValue f (Typed ty x) = Typed ty (f x)
 -- 'reType' format x = 'typed' format ('erase' x)
 -- @
 reType :: Typeable a => TypeFormat -> Typed a -> Typed a
-reType format (Typed _ty x) = typed format x
+reType format (Typed _ty x) = Typed (makeTypeInformationDebug format (typeOf x)) x
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- ##########################################################################
+-- ###                                                                    ###
+-- ###  What follows was simply copied from the normal module, replacing  ###
+-- ###  makeTypeInformation with makeTypeInformationDebug.                ###
+-- ###                                                                    ###
+-- ##########################################################################
 
 
 
@@ -104,7 +122,7 @@ encodeTyped :: forall a.
             -> a
             -> BSL.ByteString
 encodeTyped format = \x -> encode (Typed typeInfo x)
-      where typeInfo = preserialize (makeTypeInformation format typerep)
+      where typeInfo = preserialize (makeTypeInformationDebug format typerep)
             typerep = typeRep (Proxy :: Proxy a)
 
 {-# INLINE encodeTyped #-}
@@ -185,7 +203,7 @@ decodeTypedOrFail = \input -> do
       where
 
       exTypeRep = typeRep (Proxy :: Proxy a)
-      cache = map (\format -> makeTypeInformation format exTypeRep)
+      cache = map (\format -> makeTypeInformationDebug format exTypeRep)
                   [Hashed5, Hashed32, Hashed64] -- List of formats to be cached
       isCached = (`elem` cache)
 
