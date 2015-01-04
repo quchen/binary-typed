@@ -4,7 +4,7 @@
 -- | This module has the same interface as "Data.Binary.Typed", but emits
 -- debugging messages via "Debug.Trace" whenever a 'TypeInformation' is
 -- calculated. This is useful to determine whether caching works properly,
--- i.e. if a single serialization point emity a lot of caching messages
+-- i.e. if a single serialization point emits a lot of caching messages
 -- it's worth having a look at.
 --
 -- A simple example to check sharing is to evaluate
