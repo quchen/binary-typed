@@ -58,9 +58,9 @@ import           Data.Binary.Typed.Internal
 -- representation. In other words, calling 'mapTyped' on something that is
 -- typed using 'Hashed' will yield a 'Hashed' value again.
 --
--- Note: this destroys 'precache'd information, so that values have to be
--- 'precache'd again if desired. As a consequence, @'mapTyped' 'id'@
--- can be used to un-'precache' values.
+-- Note: this destroys 'preserialize'd information, so that values have to be
+-- 'preserialize'd again if desired. As a consequence, @'mapTyped' 'id'@
+-- can be used to un-'preserialize' values.
 mapTyped :: Typeable b => (a -> b) -> Typed a -> Typed b
 mapTyped f (Typed ty x) = typed (getFormat ty) (f x)
 
