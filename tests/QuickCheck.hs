@@ -20,10 +20,12 @@ import Text.Show.Functions () -- This fixes the missing Show (a->b) instance in
                               -- Travis. Can probably be removed in the future.
 
 
+qcOptions = QuickCheckTests 1e4
+
 
 -- | The entire QuickCheck test tree, to be imported qualified
 props :: TestTree
-props = tree tests where
+props = localOption qcOptions (tree tests) where
       tree = testGroup "QuickCheck"
       tests = [ prop_inverses
               , prop_api
