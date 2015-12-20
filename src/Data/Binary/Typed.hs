@@ -6,7 +6,7 @@
 
 
 -- | Defines a type-safe 'Data.Binary.Binary' instance to ensure data is
---   ecoded with the type it was serialized from.
+--   encoded with the type it was serialized from.
 --
 --  * The "Data.Binary.Typed.Tutorial" provides some more examples of usage.
 --  * The "Data.Binary.Typed.Debug" is useful to ensure calculated type

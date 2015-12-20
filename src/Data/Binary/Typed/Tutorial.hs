@@ -70,7 +70,7 @@ import Data.Binary.Typed.Internal
 --
 -- This package is typically used for debugging purposes. 'Hashed32' type
 -- information keeps the size overhead relatively low, but requires a certain
--- amount of computational ressources. It is reliable at detecting errors, but
+-- amount of computational resources. It is reliable at detecting errors, but
 -- not very good at telling specifics about it. If a problem is identified, the
 -- typing level can be increased to 'Shown' or 'Full', providing information
 -- about the involved types. If performance is critical, 'Untyped' \"typed\"
