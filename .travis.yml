@@ -11,16 +11,23 @@ language: c
 addons:
   apt:
     packages:
-    - libgmp-dev
+        - libgmp-dev
 
 # The different configurations we want to test. You could also do things like
 # change flags or use --stack-yaml to point to a different file.
 env:
-- ARGS=""
-- ARGS="--resolver lts-2"
-- ARGS="--resolver lts-3"
-- ARGS="--resolver lts"
-- ARGS="--resolver nightly"
+    - ARGS=""
+    - ARGS="--resolver lts-2"
+    - ARGS="--resolver lts-6"
+    - ARGS="--resolver lts-9"
+    - ARGS="--resolver lts"
+    - ARGS="--resolver nightly --ghc-options \"-Wcompat -Werror\""
+
+matrix:
+    fast_finish: true
+    allow_failures:
+        - env:
+            - ARGS="--resolver nightly --ghc-options \"-Wcompat -Werror\""
 
 before_install:
 # Download and unpack the stack executable
